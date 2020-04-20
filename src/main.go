@@ -22,7 +22,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	http.ServeFile(w, r, "home.html")
+	http.ServeFile(w, r, "public/index.html")
 }
 
 func main() {
@@ -30,6 +30,7 @@ func main() {
 	hub := newHub()
 	go hub.run()
 	http.HandleFunc("/", serveHome)
+	http.Handle("/public", http.FileServer(http.Dir("./public")))
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})

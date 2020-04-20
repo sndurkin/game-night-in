@@ -1,13 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<title>Chat Example</title>
-
-<script src="https://code.jquery.com/jquery-3.5.0.min.js" integrity="sha256-xNzN2a4ltkB44Mc/Jz3pT4iU1cmeR0FkXs4pru/JxaQ=" crossorigin="anonymous"></script>
-
-<script type="text/javascript">
 window.onload = function () {
-  var conn;
+  let conn;
 
   function addPlayer(playerName, isOwner) {
     $('<li></li>').text(playerName).appendTo($('#player-list'));
@@ -59,48 +51,3 @@ window.onload = function () {
     appendLog(item);
   }
 };
-</script>
-<style type="text/css">
-html {
-  overflow: hidden;
-}
-
-body {
-  overflow: hidden;
-  padding: 0;
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  background: gray;
-}
-
-#log {
-  background: white;
-  margin: 0;
-  padding: 0.5em 0.5em 0.5em 0.5em;
-  position: absolute;
-  top: 0.5em;
-  left: 0.5em;
-  right: 0.5em;
-  bottom: 3em;
-  overflow: auto;
-}
-
-#form {
-  padding: 0 0.5em 0 0.5em;
-  margin: 0;
-  position: absolute;
-  bottom: 1em;
-  left: 0px;
-  width: 100%;
-  overflow: hidden;
-}
-
-</style>
-</head>
-<body>
-<ol id="player-list"></ol>
-<input type="text" id="name" size="64" autofocus value="Sean" />
-<input type="button" id="join" value="Join" />
-</body>
-</html>
