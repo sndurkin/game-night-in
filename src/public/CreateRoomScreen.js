@@ -19,8 +19,8 @@ export default class CreateRoomScreen extends Component {
     this.createRoom = this.createRoom.bind(this);
   }
 
-  render(props, state) {
-    const { gameType, name, error } = state;
+  render() {
+    const { gameType, name, error } = this.state;
 
     return html`
       <div class="screen">
@@ -47,6 +47,12 @@ export default class CreateRoomScreen extends Component {
     `;
   }
 
+  handleMessage(data, e) {
+    if (data.error) {
+      this.setState({ error: data.error });
+    }
+  }
+
   onSelectGameType(e) {
     this.setState({ gameType: e.target.value });
   }
@@ -56,9 +62,10 @@ export default class CreateRoomScreen extends Component {
   }
 
   createRoom() {
+    const { conn } = this.props;
     const { gameType, name } = this.state;
     if (name.length === 0) {
-      this.setState({ error: 'Please enter a name to join.' });
+      this.setState({ error: 'Please enter a name first.' });
       return;
     }
 
@@ -66,8 +73,8 @@ export default class CreateRoomScreen extends Component {
       action: Constants.Actions.CREATE_ROOM,
       body: {
         gameType: gameType,
-        name: name
-      }
+        name: name,
+      },
     }));
   }
 }

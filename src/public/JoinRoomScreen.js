@@ -1,5 +1,7 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
+import Constants from './Constants.js';
+
 
 export default class JoinRoomScreen extends Component {
 
@@ -17,11 +19,14 @@ export default class JoinRoomScreen extends Component {
     this.joinRoom = this.joinRoom.bind(this);
   }
 
-  render(props, state) {
-    const { name, roomCode } = state;
+  render() {
+    const { name, roomCode, error } = this.state;
 
     return html`
       <div class="screen">
+        ${error && html`
+          <span class="label error">${error}</span>
+        `}
         <label>
           Room code
           <input
@@ -45,6 +50,12 @@ export default class JoinRoomScreen extends Component {
     `;
   }
 
+  handleMessage(data, e) {
+    if (data.error) {
+      this.setState({ error: data.error });
+    }
+  }
+
   onNameChange(e) {
     this.setState({ name: e.target.value });
   }
@@ -54,17 +65,25 @@ export default class JoinRoomScreen extends Component {
   }
 
   joinRoom() {
-    if (this.name.length === 0) {
-      this.error = 'Please enter a name to join.';
+    const { conn } = this.props;
+    const { roomCode, name } = this.state;
+
+    if (roomCode.length === 0) {
+      this.setState({ error: 'Please enter a room code.' });
+      return;
+    }
+
+    if (name.length === 0) {
+      this.setState({ error: 'Please enter a name to join.' });
       return;
     }
 
     conn.send(JSON.stringify({
       action: Constants.Actions.JOIN_ROOM,
       body: {
-        roomCode: '3487',
-        name: this.name
-      }
+        roomCode: roomCode,
+        name: name,
+      },
     }));
   }
 }

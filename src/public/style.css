@@ -30,8 +30,7 @@ button.lone {
 }
 
 .screen {
-  width: 100%;
-  height: 100%;
+  padding-top: 2em;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -40,4 +39,11 @@ button.lone {
 
 label {
   width: 100%;
+  margin-bottom: 1em;
+}
+
+.label.error {
+  font-size: 1em;
+  width: 100%;
+  margin: 0 0 1em 0;
 }

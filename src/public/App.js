@@ -20,32 +20,59 @@ class App extends Component {
     this.transitionToPage = this.transitionToPage.bind(this);
   }
 
+  componentDidMount() {
+    const { conn } = this.props;
+
+    conn.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+
+      // TODO: Screen transition handling based on messages
+
+      this.getActiveScreen().handleMessage(data, e);
+    };
+  }
+
+  getActiveScreen() {
+    switch (this.state.page) {
+      case Constants.Pages.HOME:
+        return this.homeScreen;
+      case Constants.Pages.CREATE_ROOM:
+        return this.createRoomScreen;
+      case Constants.Pages.JOIN_ROOM:
+        return this.joinRoomScreen;
+    }
+
+    return null;
+  }
+
   render() {
+    const { conn } = this.props;
     const { page } = this.state;
 
     const sharedProps = {
-      transitionToPage: this.transitionToPage
+      conn: conn,
+      transitionToPage: this.transitionToPage,
     };
 
     return html`
       <div class="app">
         ${page === Constants.Pages.HOME && html`
           <${ScreenWrapper}>
-            <${HomeScreen}  ...${sharedProps} />
+            <${HomeScreen} ref=${r => this.homeScreen = r} ...${sharedProps} />
           <//>
         `}
         ${page === Constants.Pages.CREATE_ROOM && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
           >
-            <${CreateRoomScreen}  ...${sharedProps} />
+            <${CreateRoomScreen} ref=${r => this.createRoomScreen = r} ...${sharedProps} />
           <//>
         `}
         ${page === Constants.Pages.JOIN_ROOM && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
           >
-            <${JoinRoomScreen}  ...${sharedProps} />
+            <${JoinRoomScreen} ref=${r => this.joinRoomScreen = r} ...${sharedProps} />
           <//>
         `}
       </div>
@@ -60,41 +87,29 @@ class App extends Component {
     return `display: ${this.state.page === page ? 'block' : 'none'}`;
   }
 }
-/*
-const Header = ({ name }) => html`<h1>${name} List</h1>`
 
-const Footer = props => html`<footer ...${props} />`
-*/
-render(html`<${App} />`, document.body);
-
-
-window.onload = function () {
-  if (!window["WebSocket"]) {
+window.onload = function() {
+  if (!window['WebSocket']) {
     document.open();
     document.write('<b>Your browser does not support WebSockets.</b>');
     document.close();
     return;
   }
 
-  conn = new WebSocket("ws://" + document.location.host + "/ws");
-  conn.onclose = function (evt) {
-    /*
-    document.open();
-    document.write('<b>Connection closed.</b>');
-    document.close();
-    */
+  conn = new WebSocket('ws://' + document.location.host + '/ws');
+  conn.onclose = function(e) {
+    render(html`
+      <div>
+        <h3>Oh no! We lost the connection to the server.</h3>
+        <p>Refresh and then try to rejoin with the same room code:</p>
+        <button onClick=${refresh}>Refresh</button>
+      </div>
+    `, document.body);
   };
-  conn.onmessage = function (evt) {
-    const data = JSON.parse(evt.data);
-    switch (data.event) {
-      case 'player-joined':
-        for (let player of data.body.players) {
-          addPlayer(player.name, player.isOwner);
-        }
-        break;
-      case 'other-player-joined':
-        addPlayer(data.body.name);
-        break;
-    }
-  };
+
+  render(html`<${App} conn=${conn} />`, document.body);
 };
+
+function refresh() {
+  window.location.reload();
+}

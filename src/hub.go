@@ -5,8 +5,9 @@
 package main
 
 import (
-	"log"
+	"strings"
 	"encoding/json"
+	"log"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -30,13 +31,13 @@ type Hub struct {
 
 type PlayerInfo struct {
 	client *Client
-	name string
-	room *GameRoom
+	name   string
+	room   *GameRoom
 }
 
 type GameRoom struct {
-	roomCode string
-	gameType string
+	roomCode   string
+	gameType   string
 	playerList []*PlayerInfo
 }
 
@@ -48,11 +49,11 @@ type PlayerClient struct {
 
 func newHub() *Hub {
 	return &Hub{
-		playerClients:    make(map[*Client]*PlayerInfo),
-		rooms: make(map[string]*GameRoom),
-		message:  make(chan *ClientMessage),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
+		playerClients: make(map[*Client]*PlayerInfo),
+		rooms:         make(map[string]*GameRoom),
+		message:       make(chan *ClientMessage),
+		register:      make(chan *Client),
+		unregister:    make(chan *Client),
 	}
 }
 
@@ -71,14 +72,14 @@ func (h *Hub) run() {
 		case clientMessage := <-h.message:
 			h.processIncomingMessage(clientMessage)
 			/*
-			for client := range h.playerClients {
-				select {
-				case client.send <- message:
-				default:
-					close(client.send)
-					delete(h.playerClients, client)
+				for client := range h.playerClients {
+					select {
+					case client.send <- message:
+					default:
+						close(client.send)
+						delete(h.playerClients, client)
+					}
 				}
-			}
 			*/
 		}
 	}
@@ -91,64 +92,73 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 	}
 	err := json.Unmarshal(clientMessage.message, &incomingMessage)
 	if err != nil {
-		panic(err)   // TODO: handle properly
+		panic(err) // TODO: handle properly
 	}
 
-	var outgoingMessage OutgoingMessage
-	var otherOutgoingMessage OutgoingMessage
 	switch incomingMessage.Action {
-	case "join":
+	case "join-room":
 		var joinReq JoinRequest
 		if err := json.Unmarshal(body, &joinReq); err != nil {
 			//log.Fatal(err)
 			panic(err)
 		}
-		log.Printf("Join request: %s\n", joinReq.Name)
+		h.joinRoom(clientMessage, joinReq)
+	}
+}
 
-		h.playerClients[clientMessage.client].name = joinReq.Name
-		_, ok := h.rooms[joinReq.RoomCode]
-		if !ok {
+func (h *Hub) joinRoom(clientMessage *ClientMessage, joinReq JoinRequest) {
+	log.Printf("Join request: %s\n", joinReq.Name)
+
+	for _, playerInfo := range h.playerClients {
+		if strings.EqualFold(playerInfo.name, joinReq.Name) {
+			// TODO: check if same IP address so we can replace the playerClient with the one
+			// that probably has lost connection?
+
 			outgoingMessage.Event = "error"
-			outgoingMessage.Error = "This room code does not exist."
-
-			output, err := json.Marshal(outgoingMessage)
-			if err != nil {
-				panic(err)   // TODO: handle properly
-			}
-
-			for client := range h.playerClients {
-				if client == clientMessage.client {
-					select {
-					case client.send <- output:
-					default:
-						close(client.send)
-						delete(h.playerClients, client)
-					}
-				}
-			}
-		}
-
-		players := make([]Player, 5)
-
-		outgoingMessage.Event = "player-joined"
-		outgoingMessage.Body = PlayerJoinedEvent{
-			Players: players,
-		}
-
-		otherOutgoingMessage.Event = "other-player-joined"
-		otherOutgoingMessage.Body = OtherPlayerJoinedEvent{
-			Name: joinReq.Name,
+			outgoingMessage.Error = "A player with that name is already in the room."
+			sendOutgoingMessages(clientMessage, &outgoingMessage, nil)
+			return
 		}
 	}
 
-	output, err := json.Marshal(outgoingMessage)
-	if err != nil {
-		panic(err)   // TODO: handle properly
+	h.playerClients[clientMessage.client].name = joinReq.Name
+	_, ok := h.rooms[joinReq.RoomCode]
+	if !ok {
+		outgoingMessage.Event = "error"
+		outgoingMessage.Error = "This room code does not exist."
+		sendOutgoingMessages(clientMessage, &outgoingMessage, nil)
+		return
 	}
 
-	otherOutput, err := json.Marshal(otherOutgoingMessage)
+	players := make([]Player, 5)
+
+	outgoingMessage.Event = "joined"
+	outgoingMessage.Body = JoinedEvent{
+		Players: players,
+	}
+
+	otherOutgoingMessage.Event = "player-joined"
+	otherOutgoingMessage.Body = PlayerJoinedEvent{
+		Name: joinReq.Name,
+	}
+
+	sendOutgoingMessages(clientMessage, &outgoingMessage, &otherOutgoingMessage)
+}
+
+func (h *Hub) sendOutgoingMessages(clientMessage *ClientMessage, outgoingMessage *OutgoingMessage,
+	otherOutgoingMessage *OutgoingMessage) {
+	var err error
+	output, err := json.Marshal(*outgoingMessage)
 	if err != nil {
-		panic(err)   // TODO: handle properly
+		panic(err) // TODO: handle properly
+	}
+
+	var otherOutput []byte
+	if otherOutgoingMessage != nil {
+		otherOutput, err = json.Marshal(otherOutgoingMessage)
+		if err != nil {
+			panic(err) // TODO: handle properly
+		}
 	}
 
 	for client := range h.playerClients {
@@ -159,7 +169,7 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 				close(client.send)
 				delete(h.playerClients, client)
 			}
-		} else {
+		} else if otherOutgoingMessage != nil { {
 			select {
 			case client.send <- otherOutput:
 			default:

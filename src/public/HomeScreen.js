@@ -8,48 +8,26 @@ export default class HomeScreen extends Component {
   constructor(...args) {
     super(...args);
 
-    this.state = {
-      name: '',
-      error: '',
-    };
-
-    this.createRoom = this.createRoom.bind(this);
-    this.joinRoom = this.joinRoom.bind(this);
+    this.openCreateRoom = this.openCreateRoom.bind(this);
+    this.openJoinRoom = this.openJoinRoom.bind(this);
   }
 
-  render(props, state) {
+  render() {
     return html`
       <div class="screen">
-        <button class="lone" onClick=${this.createRoom}>Create new game</button>
+        <button class="lone" onClick=${this.openCreateRoom}>Create new game</button>
         <div class="center-horiz">or</div>
-        <button class="lone" onClick=${this.joinRoom}>Join existing game</button>
+        <button class="lone" onClick=${this.openJoinRoom}>Join existing game</button>
       </div>
     `;
   }
 
-  createRoom() {
+  openCreateRoom() {
     this.props.transitionToPage(Constants.Pages.CREATE_ROOM);
   }
 
-  joinRoom() {
+  openJoinRoom() {
     this.props.transitionToPage(Constants.Pages.JOIN_ROOM);
   }
 
-  onNameChange(e) {
-    this.setState({ name: e.target.value });
-  }
-
-  join() {
-    if (this.name.length === 0) {
-      this.error = 'Please enter a name to join.';
-      return;
-    }
-
-    conn.send(JSON.stringify({
-      action: 'join',
-      body: {
-        name: this.name
-      }
-    }));
-  }
 }
