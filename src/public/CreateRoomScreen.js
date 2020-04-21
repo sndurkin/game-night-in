@@ -3,7 +3,7 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import Constants from './Constants.js';
 
 
-export default class HomeScreen extends Component {
+export default class CreateRoomScreen extends Component {
 
   constructor(...args) {
     super(...args);
@@ -13,41 +13,34 @@ export default class HomeScreen extends Component {
       error: '',
     };
 
-    this.createRoom = this.createRoom.bind(this);
-    this.joinRoom = this.joinRoom.bind(this);
+    this.onNameChange = this.onNameChange.bind(this);
   }
 
   render(props, state) {
+    const { name } = state;
+
     return html`
       <div class="screen">
-        <button class="lone" onClick=${this.createRoom}>Create new game</button>
-        <div class="center-horiz">or</div>
-        <button class="lone" onClick=${this.joinRoom}>Join existing game</button>
+        <input type="text" maxlength="20" value="${name}" onInput=${this.onNameChange} autofocus />
+        <button>Create</button>
       </div>
     `;
-  }
-
-  createRoom() {
-    this.props.transitionToPage(Constants.Pages.CREATE_ROOM);
-  }
-
-  joinRoom() {
-    this.props.transitionToPage(Constants.Pages.JOIN_ROOM);
   }
 
   onNameChange(e) {
     this.setState({ name: e.target.value });
   }
 
-  join() {
+  create() {
     if (this.name.length === 0) {
       this.error = 'Please enter a name to join.';
       return;
     }
 
     conn.send(JSON.stringify({
-      action: 'join',
+      action: Constants.Actions.CREATE_ROOM,
       body: {
+        gameType: 'fishbowl',
         name: this.name
       }
     }));

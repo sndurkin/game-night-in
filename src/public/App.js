@@ -1,16 +1,57 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
+import ScreenWrapper from './ScreenWrapper.js';
 import HomeScreen from './HomeScreen.js';
+import CreateRoomScreen from './CreateRoomScreen.js';
+import JoinRoomScreen from './JoinRoomScreen.js';
+import Constants from './Constants.js';
 
 
 let conn;
-class App extends Component {  
+class App extends Component {
+
+  constructor(...args) {
+    super(...args);
+
+    this.state = {
+      page: Constants.Pages.HOME,
+    };
+
+    this.transitionToPage = this.transitionToPage.bind(this);
+  }
+
   render() {
+    const sharedProps = {
+      transitionToPage: this.transitionToPage
+    };
+
     return html`
       <div class="app">
-        <${HomeScreen} />
+        <${ScreenWrapper} style=${this.getStyle(Constants.Pages.HOME)}>
+          <${HomeScreen}  ...${sharedProps} />
+        <//>
+        <${ScreenWrapper}
+          onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+          style=${this.getStyle(Constants.Pages.CREATE_ROOM)}
+        >
+          <${CreateRoomScreen}  ...${sharedProps} />
+        <//>
+        <${ScreenWrapper}
+          onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+          style=${this.getStyle(Constants.Pages.JOIN_ROOM)}
+        >
+          <${JoinRoomScreen}  ...${sharedProps} />
+        <//>
       </div>
     `;
+  }
+
+  transitionToPage(page) {
+    this.setState({ page: page });
+  }
+
+  getStyle(page) {
+    return `display: ${this.state.page === page ? 'block' : 'none'}`;
   }
 }
 /*
@@ -18,7 +59,7 @@ const Header = ({ name }) => html`<h1>${name} List</h1>`
 
 const Footer = props => html`<footer ...${props} />`
 */
-render(html`<${App} page="All" />`, document.body);
+render(html`<${App} />`, document.body);
 
 
 window.onload = function () {
@@ -28,7 +69,7 @@ window.onload = function () {
     document.close();
     return;
   }
-  
+
   conn = new WebSocket("ws://" + document.location.host + "/ws");
   conn.onclose = function (evt) {
     /*

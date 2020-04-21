@@ -15,6 +15,7 @@ type IncomingMessage struct {
 
 // JoinRequest is used by clients to officially join a game room.
 type JoinRequest struct {
+	RoomCode string `json:"roomCode"`
 	Name string `json:"name"`
 }
 
@@ -26,6 +27,7 @@ type JoinResponse struct {
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
 	Event string `json:"event"`
+	Error string `json:"error"`
 	Body  interface{} `json:"body"`
 }
 

@@ -12,11 +12,11 @@ import (
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
-	// Registered clients.
-	clients map[*Client]bool
+	// Map of connected client to PlayerInfo
+	playerClients map[*Client]*PlayerInfo
 
-	// List of players
-	playerClientsList []*PlayerClient
+	// Map of room code to GameRoom
+	rooms map[string]*GameRoom
 
 	// Inbound messages from the clients.
 	message chan *ClientMessage
@@ -28,6 +28,18 @@ type Hub struct {
 	unregister chan *Client
 }
 
+type PlayerInfo struct {
+	client *Client
+	name string
+	room *GameRoom
+}
+
+type GameRoom struct {
+	roomCode string
+	gameType string
+	playerList []*PlayerInfo
+}
+
 // PlayerClient is used to connect clients with player information.
 type PlayerClient struct {
 	client *Client
@@ -36,10 +48,11 @@ type PlayerClient struct {
 
 func newHub() *Hub {
 	return &Hub{
+		playerClients:    make(map[*Client]*PlayerInfo),
+		rooms: make(map[string]*GameRoom),
 		message:  make(chan *ClientMessage),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
 	}
 }
 
@@ -47,21 +60,23 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.clients[client] = true
+			h.playerClients[client] = &PlayerInfo{
+				client: client,
+			}
 		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
+			if _, ok := h.playerClients[client]; ok {
+				delete(h.playerClients, client)
 				close(client.send)
 			}
 		case clientMessage := <-h.message:
 			h.processIncomingMessage(clientMessage)
 			/*
-			for client := range h.clients {
+			for client := range h.playerClients {
 				select {
 				case client.send <- message:
 				default:
 					close(client.send)
-					delete(h.clients, client)
+					delete(h.playerClients, client)
 				}
 			}
 			*/
@@ -90,21 +105,30 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 		}
 		log.Printf("Join request: %s\n", joinReq.Name)
 
-		var playerClient PlayerClient{
-			player: Player{
-				Name: joinReq.Name,
-			},
-			client: clientMessage.client,
-		}
-		if len(h.playerClientsList) == 0 {
-			playerClient.player.IsOwner = true
-		}
-		h.playerClientsList = append(h.playerClientsList, &playerClient)
+		h.playerClients[clientMessage.client].name = joinReq.Name
+		_, ok := h.rooms[joinReq.RoomCode]
+		if !ok {
+			outgoingMessage.Event = "error"
+			outgoingMessage.Error = "This room code does not exist."
 
-		players := make([]Player, len(h.playerClientsList))
-		for i, v := range input {
-			players = append(players, h.playerClientsList.player)
+			output, err := json.Marshal(outgoingMessage)
+			if err != nil {
+				panic(err)   // TODO: handle properly
+			}
+
+			for client := range h.playerClients {
+				if client == clientMessage.client {
+					select {
+					case client.send <- output:
+					default:
+						close(client.send)
+						delete(h.playerClients, client)
+					}
+				}
+			}
 		}
+
+		players := make([]Player, 5)
 
 		outgoingMessage.Event = "player-joined"
 		outgoingMessage.Body = PlayerJoinedEvent{
@@ -127,20 +151,20 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 		panic(err)   // TODO: handle properly
 	}
 
-	for client := range h.clients {
+	for client := range h.playerClients {
 		if client == clientMessage.client {
 			select {
 			case client.send <- output:
 			default:
 				close(client.send)
-				delete(h.clients, client)
+				delete(h.playerClients, client)
 			}
 		} else {
 			select {
 			case client.send <- otherOutput:
 			default:
 				close(client.send)
-				delete(h.clients, client)
+				delete(h.playerClients, client)
 			}
 		}
 	}
