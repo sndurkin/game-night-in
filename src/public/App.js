@@ -21,27 +21,33 @@ class App extends Component {
   }
 
   render() {
+    const { page } = this.state;
+
     const sharedProps = {
       transitionToPage: this.transitionToPage
     };
 
     return html`
       <div class="app">
-        <${ScreenWrapper} style=${this.getStyle(Constants.Pages.HOME)}>
-          <${HomeScreen}  ...${sharedProps} />
-        <//>
-        <${ScreenWrapper}
-          onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
-          style=${this.getStyle(Constants.Pages.CREATE_ROOM)}
-        >
-          <${CreateRoomScreen}  ...${sharedProps} />
-        <//>
-        <${ScreenWrapper}
-          onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
-          style=${this.getStyle(Constants.Pages.JOIN_ROOM)}
-        >
-          <${JoinRoomScreen}  ...${sharedProps} />
-        <//>
+        ${page === Constants.Pages.HOME && html`
+          <${ScreenWrapper}>
+            <${HomeScreen}  ...${sharedProps} />
+          <//>
+        `}
+        ${page === Constants.Pages.CREATE_ROOM && html`
+          <${ScreenWrapper}
+            onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+          >
+            <${CreateRoomScreen}  ...${sharedProps} />
+          <//>
+        `}
+        ${page === Constants.Pages.JOIN_ROOM && html`
+          <${ScreenWrapper}
+            onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+          >
+            <${JoinRoomScreen}  ...${sharedProps} />
+          <//>
+        `}
       </div>
     `;
   }

@@ -10,11 +10,34 @@ body {
   height: 100%;
 }
 
+.app {
+  width: 100%;
+  height: 100%;
+}
+
 .center-horiz {
   text-align: center;
 }
 
 button.lone {
   display: block;
+  width: 100%;
+}
+
+.screen-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+label {
   width: 100%;
 }

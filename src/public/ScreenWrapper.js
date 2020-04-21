@@ -13,7 +13,7 @@ export default class ScreenWrapper extends Component {
     const { onBack, children, style } = props;
 
     return html`
-      <div style=${style}>
+      <div class="screen-wrapper" style=${style}>
         ${onBack && html`
           <button onClick=${onBack}>Back</button>
         `}

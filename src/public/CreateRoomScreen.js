@@ -9,39 +9,64 @@ export default class CreateRoomScreen extends Component {
     super(...args);
 
     this.state = {
+      gameType: 'fishbowl',
       name: '',
       error: '',
     };
 
+    this.onSelectGameType = this.onSelectGameType.bind(this);
     this.onNameChange = this.onNameChange.bind(this);
+    this.createRoom = this.createRoom.bind(this);
   }
 
   render(props, state) {
-    const { name } = state;
+    const { gameType, name, error } = state;
 
     return html`
       <div class="screen">
-        <input type="text" maxlength="20" value="${name}" onInput=${this.onNameChange} autofocus />
-        <button>Create</button>
+        ${error && html`
+          <span class="label error">${error}</span>
+        `}
+        <label class="select">
+          Game type
+          <select value=${gameType} onChange=${this.onSelectGameType}>
+            <option value="fishbowl">Fishbowl</option>
+          </select>
+        </label>
+        <label>
+          Username
+          <input
+            type="text"
+            maxlength="20"
+            value="${name}"
+            placeholder="Enter your name"
+            onInput=${this.onNameChange} />
+        </label>
+        <button class="lone" onClick=${this.createRoom}>Create</button>
       </div>
     `;
+  }
+
+  onSelectGameType(e) {
+    this.setState({ gameType: e.target.value });
   }
 
   onNameChange(e) {
     this.setState({ name: e.target.value });
   }
 
-  create() {
-    if (this.name.length === 0) {
-      this.error = 'Please enter a name to join.';
+  createRoom() {
+    const { gameType, name } = this.state;
+    if (name.length === 0) {
+      this.setState({ error: 'Please enter a name to join.' });
       return;
     }
 
     conn.send(JSON.stringify({
       action: Constants.Actions.CREATE_ROOM,
       body: {
-        gameType: 'fishbowl',
-        name: this.name
+        gameType: gameType,
+        name: name
       }
     }));
   }
