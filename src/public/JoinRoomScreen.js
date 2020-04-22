@@ -9,8 +9,8 @@ export default class JoinRoomScreen extends Component {
     super(...args);
 
     this.state = {
-      name: '',
-      roomCode: '',
+      name: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+      roomCode: '6374',
       error: '',
     };
 
@@ -53,7 +53,13 @@ export default class JoinRoomScreen extends Component {
   handleMessage(data, e) {
     if (data.error) {
       this.setState({ error: data.error });
+      return;
     }
+
+    this.props.transitionToPage(Constants.Pages.ROOM);
+    this.props.updateStoreData({
+      teams: data.body.teams,
+    });
   }
 
   onNameChange(e) {

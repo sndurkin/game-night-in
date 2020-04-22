@@ -4,6 +4,7 @@ import ScreenWrapper from './ScreenWrapper.js';
 import HomeScreen from './HomeScreen.js';
 import CreateRoomScreen from './CreateRoomScreen.js';
 import JoinRoomScreen from './JoinRoomScreen.js';
+import RoomScreen from './RoomScreen.js';
 import Constants from './Constants.js';
 
 
@@ -17,6 +18,7 @@ class App extends Component {
       page: Constants.Pages.HOME,
     };
 
+    this.updateStoreData = this.updateStoreData.bind(this);
     this.transitionToPage = this.transitionToPage.bind(this);
   }
 
@@ -40,6 +42,8 @@ class App extends Component {
         return this.createRoomScreen;
       case Constants.Pages.JOIN_ROOM:
         return this.joinRoomScreen;
+      case Constants.Pages.ROOM:
+        return this.roomScreen;
     }
 
     return null;
@@ -47,10 +51,12 @@ class App extends Component {
 
   render() {
     const { conn } = this.props;
-    const { page } = this.state;
+    const { page, ...storeData } = this.state;
 
     const sharedProps = {
       conn: conn,
+      ...storeData,
+      updateStoreData: this.updateStoreData,
       transitionToPage: this.transitionToPage,
     };
 
@@ -75,8 +81,19 @@ class App extends Component {
             <${JoinRoomScreen} ref=${r => this.joinRoomScreen = r} ...${sharedProps} />
           <//>
         `}
+        ${page === Constants.Pages.ROOM && html`
+          <${ScreenWrapper}
+            onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+          >
+            <${RoomScreen} ref=${r => this.roomScreen = r} ...${sharedProps} />
+          <//>
+        `}
       </div>
     `;
+  }
+
+  updateStoreData(newStoreData) {
+    this.setState(newStoreData);
   }
 
   transitionToPage(page) {

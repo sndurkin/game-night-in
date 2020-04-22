@@ -1,13 +1,15 @@
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
+// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
-	"strings"
 	"encoding/json"
 	"log"
+	"math/rand"
+	"strconv"
+	"strings"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -30,15 +32,17 @@ type Hub struct {
 }
 
 type PlayerInfo struct {
-	client *Client
-	name   string
-	room   *GameRoom
+	client      *Client
+	name        string
+	room        *GameRoom
+	isRoomOwner bool
 }
 
 type GameRoom struct {
-	roomCode   string
-	gameType   string
-	playerList []*PlayerInfo
+	roomCode string
+	gameType string
+	players  []*PlayerInfo
+	teams    [][]*PlayerInfo
 }
 
 // PlayerClient is used to connect clients with player information.
@@ -71,16 +75,6 @@ func (h *Hub) run() {
 			}
 		case clientMessage := <-h.message:
 			h.processIncomingMessage(clientMessage)
-			/*
-				for client := range h.playerClients {
-					select {
-					case client.send <- message:
-					default:
-						close(client.send)
-						delete(h.playerClients, client)
-					}
-				}
-			*/
 		}
 	}
 }
@@ -96,57 +90,113 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 	}
 
 	switch incomingMessage.Action {
-	case "join-room":
-		var joinReq JoinRequest
-		if err := json.Unmarshal(body, &joinReq); err != nil {
+	case "create-room":
+		var createRoomReq CreateRoomRequest
+		if err := json.Unmarshal(body, &createRoomReq); err != nil {
 			//log.Fatal(err)
 			panic(err)
 		}
-		h.joinRoom(clientMessage, joinReq)
+		h.createRoom(clientMessage, createRoomReq)
+	case "join-room":
+		var joinRoomReq JoinRoomRequest
+		if err := json.Unmarshal(body, &joinRoomReq); err != nil {
+			//log.Fatal(err)
+			panic(err)
+		}
+		h.joinRoom(clientMessage, joinRoomReq)
+	default:
+		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
 }
 
-func (h *Hub) joinRoom(clientMessage *ClientMessage, joinReq JoinRequest) {
-	log.Printf("Join request: %s\n", joinReq.Name)
+func (h *Hub) createRoom(clientMessage *ClientMessage, createRoomReq CreateRoomRequest) {
+	log.Printf("Create room request: %s\n", createRoomReq.Name)
 
-	for _, playerInfo := range h.playerClients {
-		if strings.EqualFold(playerInfo.name, joinReq.Name) {
+	var outgoingMessage OutgoingMessage
+
+	room := &GameRoom{
+		gameType: createRoomReq.GameType,
+		roomCode: strconv.Itoa(1000 + rand.Intn(9999-1000)),
+		players:  make([]*PlayerInfo, 0),
+		teams:    make([][]*PlayerInfo, 2),
+	}
+	h.rooms[room.roomCode] = room
+
+	h.playerClients[clientMessage.client].name = createRoomReq.Name
+	h.playerClients[clientMessage.client].room = room
+	h.playerClients[clientMessage.client].isRoomOwner = true
+
+	room.players = append(room.players, h.playerClients[clientMessage.client])
+
+	room.teams[0] = make([]*PlayerInfo, 0)
+	room.teams[0] = append(room.teams[0], h.playerClients[clientMessage.client])
+	room.teams[1] = make([]*PlayerInfo, 0)
+
+	log.Printf("%+v\n", h.rooms)
+
+	outgoingMessage.Event = "created-room"
+	outgoingMessage.Body = CreatedRoomEvent{
+		RoomCode: room.roomCode,
+		Team:     0,
+	}
+
+	h.sendOutgoingMessages(clientMessage, &outgoingMessage, nil, nil)
+}
+
+func (h *Hub) joinRoom(clientMessage *ClientMessage, joinRoomReq JoinRoomRequest) {
+	log.Printf("Join room request: %s\n", joinRoomReq.Name)
+
+	var outgoingMessage OutgoingMessage
+
+	log.Printf("%+v\n", h.rooms)
+
+	// TODO: add support for re-joining the game
+	log.Printf("remoteAddr: %s\n", clientMessage.client.conn.UnderlyingConn().RemoteAddr())
+
+	room, ok := h.rooms[joinRoomReq.RoomCode]
+	if !ok {
+		outgoingMessage.Event = "error"
+		outgoingMessage.Error = "This room code does not exist."
+		h.sendOutgoingMessages(clientMessage, &outgoingMessage, nil, nil)
+		return
+	}
+
+	log.Printf("%+v\n", room)
+	for _, playerInfo := range room.players {
+		if strings.EqualFold(playerInfo.name, joinRoomReq.Name) {
 			// TODO: check if same IP address so we can replace the playerClient with the one
 			// that probably has lost connection?
 
 			outgoingMessage.Event = "error"
 			outgoingMessage.Error = "A player with that name is already in the room."
-			sendOutgoingMessages(clientMessage, &outgoingMessage, nil)
+			h.sendOutgoingMessages(clientMessage, &outgoingMessage, nil, nil)
 			return
 		}
 	}
 
-	h.playerClients[clientMessage.client].name = joinReq.Name
-	_, ok := h.rooms[joinReq.RoomCode]
-	if !ok {
-		outgoingMessage.Event = "error"
-		outgoingMessage.Error = "This room code does not exist."
-		sendOutgoingMessages(clientMessage, &outgoingMessage, nil)
-		return
+	// Update the PlayerInfo instance with the room and chosen name.
+	h.playerClients[clientMessage.client].name = joinRoomReq.Name
+	h.playerClients[clientMessage.client].room = room
+
+	room.players = append(room.players, h.playerClients[clientMessage.client])
+	room.teams[0] = append(room.teams[0], h.playerClients[clientMessage.client])
+
+	outgoingMessage.Event = "updated-room"
+	outgoingMessage.Body = UpdatedRoomEvent{
+		Teams: h.convertTeamsPlayerInfosToTeams(room.teams),
 	}
 
-	players := make([]Player, 5)
+	// var otherOutgoingMessage OutgoingMessage
+	// otherOutgoingMessage.Event = "updated-room"
+	// otherOutgoingMessage.Body = UpdatedRoomEvent{
+	// 	Teams: h.convertTeamsPlayerInfosToTeams(room.teams),
+	// }
 
-	outgoingMessage.Event = "joined"
-	outgoingMessage.Body = JoinedEvent{
-		Players: players,
-	}
-
-	otherOutgoingMessage.Event = "player-joined"
-	otherOutgoingMessage.Body = PlayerJoinedEvent{
-		Name: joinReq.Name,
-	}
-
-	sendOutgoingMessages(clientMessage, &outgoingMessage, &otherOutgoingMessage)
+	h.sendOutgoingMessages(clientMessage, &outgoingMessage, &outgoingMessage, room)
 }
 
 func (h *Hub) sendOutgoingMessages(clientMessage *ClientMessage, outgoingMessage *OutgoingMessage,
-	otherOutgoingMessage *OutgoingMessage) {
+	otherOutgoingMessage *OutgoingMessage, room *GameRoom) {
 	var err error
 	output, err := json.Marshal(*outgoingMessage)
 	if err != nil {
@@ -169,7 +219,7 @@ func (h *Hub) sendOutgoingMessages(clientMessage *ClientMessage, outgoingMessage
 				close(client.send)
 				delete(h.playerClients, client)
 			}
-		} else if otherOutgoingMessage != nil { {
+		} else if otherOutgoingMessage != nil && (room == nil || h.playerClients[client].room == room) {
 			select {
 			case client.send <- otherOutput:
 			default:
@@ -178,4 +228,23 @@ func (h *Hub) sendOutgoingMessages(clientMessage *ClientMessage, outgoingMessage
 			}
 		}
 	}
+}
+
+func (h *Hub) convertPlayerInfosToPlayers(playerInfos []*PlayerInfo) []Player {
+	players := make([]Player, 0, len(playerInfos))
+	for _, playerInfo := range playerInfos {
+		players = append(players, Player{
+			Name:    playerInfo.name,
+			IsOwner: playerInfo.isRoomOwner,
+		})
+	}
+	return players
+}
+
+func (h *Hub) convertTeamsPlayerInfosToTeams(teamsPlayerInfos [][]*PlayerInfo) [][]Player {
+	teams := make([][]Player, 0, len(teamsPlayerInfos))
+	for _, teamPlayerInfos := range teamsPlayerInfos {
+		teams = append(teams, h.convertPlayerInfosToPlayers(teamPlayerInfos))
+	}
+	return teams
 }

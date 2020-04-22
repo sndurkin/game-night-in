@@ -10,7 +10,7 @@ export default class CreateRoomScreen extends Component {
 
     this.state = {
       gameType: 'fishbowl',
-      name: '',
+      name: Math.random().toString(36).substring(5),
       error: '',
     };
 
@@ -50,7 +50,16 @@ export default class CreateRoomScreen extends Component {
   handleMessage(data, e) {
     if (data.error) {
       this.setState({ error: data.error });
+      return;
     }
+
+    this.props.transitionToPage(Constants.Pages.ROOM);
+    this.props.updateStoreData({
+      roomCode: data.body.roomCode,
+      teams: [
+        [{ name: this.state.name, isOwner: true }],
+      ],
+    });
   }
 
   onSelectGameType(e) {
