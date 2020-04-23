@@ -10,6 +10,10 @@ body {
   height: 100%;
 }
 
+a {
+  cursor: pointer;
+}
+
 .app {
   width: 100%;
   height: 100%;
@@ -27,14 +31,31 @@ button.lone {
 .screen-wrapper {
   width: 100%;
   height: 100%;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-header {
+  height: 3em;
+  display: flex;
+  align-items: center;
+}
+
+.room-code {
+  margin-left: auto;
+  padding: 0.2em 0.4em;
+  color: #555;
+  border-color: #555;
+  border-style: dashed;
+  border-width: 0 0 0.1em 0.1em;
 }
 
 .screen {
+  flex: 1;
   padding-top: 2em;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
 label {
@@ -46,4 +67,59 @@ label {
   font-size: 1em;
   width: 100%;
   margin: 0 0 1em 0;
+}
+
+.button-bar {
+  display: flex;
+}
+.button-bar > button {
+  flex: 1;
+}
+.button-bar > div {
+  width: 0.5em;
+}
+
+.word-row {
+  display: flex;
+  align-items: center;
+}
+
+.word-delete {
+  margin-left: auto;
+  padding: 0.5em 1em;
+}
+
+.team {
+  width: 100%;
+  align-self: flex-start;
+}
+
+.team-title {
+  font-weight: bold;
+}
+
+.team-table {
+  width: 100%;
+}
+
+.empty-list {
+  color: #999;
+}
+
+.team-row {
+  display: flex;
+}
+
+.player-ready {
+  width: 1em;
+  margin-right: 0.5em;
+}
+
+.player-name {
+  flex: 1;
+  margin-right: auto;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  padding-right: 0.5em;
 }

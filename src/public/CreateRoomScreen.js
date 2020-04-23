@@ -55,6 +55,8 @@ export default class CreateRoomScreen extends Component {
 
     this.props.transitionToPage(Constants.Pages.ROOM);
     this.props.updateStoreData({
+      name: this.state.name,
+      isRoomOwner: true,
       roomCode: data.body.roomCode,
       teams: [
         [{ name: this.state.name, isOwner: true }],

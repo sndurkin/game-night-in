@@ -10,13 +10,18 @@ export default class ScreenWrapper extends Component {
   }
 
   render(props, state) {
-    const { onBack, children, style } = props;
+    const { roomCode, onBack, children, style } = props;
 
     return html`
       <div class="screen-wrapper" style=${style}>
-        ${onBack && html`
-          <button onClick=${onBack}>Back</button>
-        `}
+        <div class="screen-header">
+          ${onBack && html`
+            <button onClick=${onBack}>Back</button>
+          `}
+          ${roomCode && html`
+            <div class="room-code">${roomCode}</div>
+          `}
+        </div>
         ${children}
       </div>
     `;

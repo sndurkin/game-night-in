@@ -58,6 +58,8 @@ export default class JoinRoomScreen extends Component {
 
     this.props.transitionToPage(Constants.Pages.ROOM);
     this.props.updateStoreData({
+      name: this.state.name,
+      roomCode: this.state.roomCode,
       teams: data.body.teams,
     });
   }

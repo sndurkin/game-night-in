@@ -63,13 +63,14 @@ class App extends Component {
     return html`
       <div class="app">
         ${page === Constants.Pages.HOME && html`
-          <${ScreenWrapper}>
+          <${ScreenWrapper} ...${sharedProps}>
             <${HomeScreen} ref=${r => this.homeScreen = r} ...${sharedProps} />
           <//>
         `}
         ${page === Constants.Pages.CREATE_ROOM && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+            ...${sharedProps}
           >
             <${CreateRoomScreen} ref=${r => this.createRoomScreen = r} ...${sharedProps} />
           <//>
@@ -77,6 +78,7 @@ class App extends Component {
         ${page === Constants.Pages.JOIN_ROOM && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+            ...${sharedProps}
           >
             <${JoinRoomScreen} ref=${r => this.joinRoomScreen = r} ...${sharedProps} />
           <//>
@@ -84,6 +86,7 @@ class App extends Component {
         ${page === Constants.Pages.ROOM && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+            ...${sharedProps}
           >
             <${RoomScreen} ref=${r => this.roomScreen = r} ...${sharedProps} />
           <//>
