@@ -37,16 +37,24 @@ type PlayerInfo struct {
 	name        string
 	room        *GameRoom
 	isRoomOwner bool
-	wordsSet bool
+	words []string
+}
+
+type Game struct {
+	state string
+	cards []string
+	currentCardsIdx int
+	currentRound int  // 0, 1, 2
+	currentPlayers []int // [ team0PlayerIdx, team1PlayerIdx ]
+	currentlyPlayingTeam int  // 0, 1, ...
 }
 
 // GameRoom holds all the data about a particular game.
 type GameRoom struct {
 	roomCode string
 	gameType string
-	players  []*PlayerInfo
 	teams    [][]*PlayerInfo
-	words []string
+	game *Game
 }
 
 // PlayerClient is used to connect clients with player information.
@@ -129,6 +137,13 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 			panic(err)
 		}
 		h.addTeam(clientMessage, req)
+	case "start-game":
+		var req StartGameRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			//log.Fatal(err)
+			panic(err)
+		}
+		h.startGame(clientMessage, req)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
@@ -140,16 +155,15 @@ func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
 	room := &GameRoom{
 		gameType: req.GameType,
 		roomCode: strconv.Itoa(1000 + rand.Intn(9999-1000)),
-		players:  make([]*PlayerInfo, 0),
 		teams:    make([][]*PlayerInfo, 2),
+		game: &Game{},
 	}
 	h.rooms[room.roomCode] = room
 
 	h.playerClients[clientMessage.client].name = req.Name
 	h.playerClients[clientMessage.client].room = room
 	h.playerClients[clientMessage.client].isRoomOwner = true
-
-	room.players = append(room.players, h.playerClients[clientMessage.client])
+	h.playerClients[clientMessage.client].words = nil
 
 	room.teams[0] = make([]*PlayerInfo, 0)
 	room.teams[0] = append(room.teams[0], h.playerClients[clientMessage.client])
@@ -181,22 +195,25 @@ func (h *Hub) joinRoom(clientMessage *ClientMessage, req JoinRoomRequest) {
 	}
 
 	log.Printf("%+v\n", room)
-	for _, playerInfo := range room.players {
-		if strings.EqualFold(playerInfo.name, req.Name) {
-			// TODO: check if same IP address so we can replace the playerClient with the one
-			// that probably has lost connection?
+	for _, teamPlayerInfos := range room.teams {
+		for _, playerInfo := range teamPlayerInfos {
+			if strings.EqualFold(playerInfo.name, req.Name) {
+				// TODO: check if same IP address so we can replace the playerClient with the one
+				// that probably has lost connection?
 
-			h.sendErrorMessage(clientMessage,
-				"A player with that name is already in the room.")
-			return
+				h.sendErrorMessage(clientMessage,
+					"A player with that name is already in the room.")
+				return
+			}
 		}
 	}
 
 	// Update the PlayerInfo instance with the room and chosen name.
 	h.playerClients[clientMessage.client].name = req.Name
 	h.playerClients[clientMessage.client].room = room
+	h.playerClients[clientMessage.client].isRoomOwner = false
+	h.playerClients[clientMessage.client].words = nil
 
-	room.players = append(room.players, h.playerClients[clientMessage.client])
 	room.teams[0] = append(room.teams[0], h.playerClients[clientMessage.client])
 
 	h.sendUpdatedRoomMessages(clientMessage, room)
@@ -212,13 +229,7 @@ func (h *Hub) submitWords(clientMessage *ClientMessage, req SubmitWordsRequest) 
 		return
 	}
 
-	if room.words == nil {
-		room.words = []string{}
-	}
-	room.words = append(room.words, req.Words...)
-
-	playerClient.wordsSet = true
-
+	playerClient.words = req.Words
 	h.sendUpdatedRoomMessages(clientMessage, room)
 }
 
@@ -262,6 +273,43 @@ func (h *Hub) addTeam(clientMessage *ClientMessage, req AddTeamRequest) {
 	h.sendUpdatedRoomMessages(clientMessage, room)
 }
 
+func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
+	log.Printf("Start game request\n")
+
+	playerClient := h.playerClients[clientMessage.client]
+	room := playerClient.room
+	if room == nil {
+		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		return
+	}
+
+	if !playerClient.isRoomOwner {
+		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+		return
+	}
+
+	game := room.game
+	game.state = "turn-start"
+	game.currentCardsIdx = 0
+	game.cards = []string{}
+	for _, teamPlayerInfos := range room.teams {
+		for _, playerInfo := range teamPlayerInfos {
+			game.cards = append(game.cards, playerInfo.words...)
+		}
+	}
+
+	// TODO: rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(game.cards), func(i, j int) {
+		game.cards[i], game.cards[j] = game.cards[j], game.cards[i]
+	})
+
+	game.currentRound = 0
+	game.currentPlayers = make([]int, len(room.teams))
+	game.currentlyPlayingTeam = 0
+
+	h.sendUpdatedGameMessages(clientMessage, room)
+}
+
 func (h *Hub) sendUpdatedRoomMessages(
 	clientMessage *ClientMessage,
 	room *GameRoom,
@@ -270,6 +318,26 @@ func (h *Hub) sendUpdatedRoomMessages(
 	msg.Event = "updated-room"
 	msg.Body = UpdatedRoomEvent{
 		Teams: h.convertTeamsPlayerInfosToTeams(room.teams),
+	}
+
+	h.sendOutgoingMessages(clientMessage, &msg, &msg,
+		room)
+}
+
+func (h *Hub) sendUpdatedGameMessages(
+	clientMessage *ClientMessage,
+	room *GameRoom,
+) {
+	game := room.game
+
+	var msg OutgoingMessage
+	msg.Event = "updated-game"
+	msg.Body = UpdatedGameEvent{
+		State: game.state,
+		CardsLeftInRound: len(game.cards) - game.currentCardsIdx,
+		CurrentRound: game.currentRound,
+		CurrentPlayers: game.currentPlayers,
+		CurrentlyPlayingTeam: game.currentlyPlayingTeam,
 	}
 
 	h.sendOutgoingMessages(clientMessage, &msg, &msg,
@@ -347,7 +415,7 @@ func (h *Hub) convertPlayerInfosToPlayers(playerInfos []*PlayerInfo) []Player {
 		players = append(players, Player{
 			Name:    playerInfo.name,
 			IsOwner: playerInfo.isRoomOwner,
-			WordsSet: playerInfo.wordsSet,
+			WordsSet: len(playerInfo.words) > 0,
 		})
 	}
 	return players

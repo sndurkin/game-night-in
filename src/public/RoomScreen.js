@@ -27,6 +27,7 @@ export default class RoomScreen extends Component {
 
     this.addTeam = this.addTeam.bind(this);
     this.movePlayer = this.movePlayer.bind(this);
+    this.startGame = this.startGame.bind(this);
   }
 
   componentDidMount() {
@@ -78,6 +79,7 @@ export default class RoomScreen extends Component {
         <button
           disabled=${words.length < 5}
           onClick=${this.submitWords}
+          style="font-size: 0.9em"
         >
           Submit words
         </button>
@@ -100,36 +102,54 @@ export default class RoomScreen extends Component {
   }
 
   renderTeams() {
-    const { isRoomOwner, teams } = this.props;
+    const { isRoomOwner } = this.props;
     const { showMovePlayerModal, teamIdxToMoveFrom } = this.state;
+    const teams = this.props.teams || [];
+
+    // To start the game, each team needs at least 2 people
+    // and everyone needs to have their words submitted.
+    const canStartGame = teams.every(players => {
+      return players.length >= Constants.Fishbowl.MIN_PLAYERS_PER_TEAM
+        && players.every(p => p.wordsSet);
+    });
 
     return html`
-      ${(teams || []).map((team, idx) => html`
-        <div class="team">
-          <div class="team-title">Team ${idx + 1}</div>
-          <div class="team-table">
-            ${(team || []).length === 0 ? html`
-              <div class="empty-list">No players yet!</div>
-            ` : (team || []).map(player => html`
-              <div class="team-row">
-                <div class="player-ready">
-                  ${player.wordsSet ? '✔' : ''}
+      <div class="teams">
+        ${teams.map((team, idx) => html`
+          <div class="team">
+            <div class="team-title">Team ${idx + 1}</div>
+            <div class="team-table">
+              ${(team || []).length === 0 ? html`
+                <div class="empty-list">No players yet!</div>
+              ` : (team || []).map(player => html`
+                <div class="team-row">
+                  <div class="player-ready">
+                    ${player.wordsSet ? '✔' : ''}
+                  </div>
+                  <div class="player-name">
+                    ${player.name}
+                  </div>
+                  ${isRoomOwner && html`
+                    <a onClick=${() => this.showMovePlayerModal(idx, player)}>
+                      Move
+                    </a>
+                  `}
                 </div>
-                <div class="player-name">
-                  ${player.name}
-                </div>
-                ${isRoomOwner && html`
-                  <a onClick=${() => this.showMovePlayerModal(idx, player)}>
-                    Move
-                  </a>
-                `}
-              </div>
-            `)}
-          </table>
-        </div>
-      `)}
+              `)}
+            </table>
+          </div>
+        `)}
+      </div>
       ${isRoomOwner && html`
-        <div><a onClick=${this.addTeam}>Add team</a></div>
+        <div class="button-bar">
+          <button onClick=${this.addTeam}>Add team</button>
+          <div></div>
+          <button
+            disabled=${!canStartGame}
+            onClick=${this.startGame}>
+            Start game
+          </button>
+        </div>
       `}
       <div class="modal">
         <input
@@ -143,7 +163,7 @@ export default class RoomScreen extends Component {
             <label for="move-player-modal" class="close">✖</label>
           </header>
           <section class="content">
-            ${(teams || []).map((_, idx) => html`
+            ${teams.map((_, idx) => html`
               <span
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
@@ -166,8 +186,15 @@ export default class RoomScreen extends Component {
       this.setState({ error: data.error });
     }
 
-    console.log(data.body.teams);
-    this.props.updateStoreData({ teams: data.body.teams });
+    switch (data.event) {
+      case Constants.Events.UPDATED_ROOM:
+        this.props.updateStoreData({ teams: data.body.teams });
+        break;
+      case Constants.Events.UPDATED_GAME:
+        this.props.updateStoreData({ game: data.body });
+        this.props.transitionToScreen(Constants.Screens.GAME);
+        break;
+    }
   }
 
   onWordChange(e) {
@@ -246,6 +273,14 @@ export default class RoomScreen extends Component {
       playerToMove: null,
       teamIdxToMoveFrom: null,
     });
+  }
+
+  startGame() {
+    const { conn } = this.props;
+    conn.send(JSON.stringify({
+      action: Constants.Actions.START_GAME,
+      body: {},
+    }));
   }
 
   get player() {

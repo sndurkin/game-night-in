@@ -5,6 +5,7 @@ import HomeScreen from './HomeScreen.js';
 import CreateRoomScreen from './CreateRoomScreen.js';
 import JoinRoomScreen from './JoinRoomScreen.js';
 import RoomScreen from './RoomScreen.js';
+import GameScreen from './GameScreen.js';
 import Constants from './Constants.js';
 
 
@@ -15,11 +16,11 @@ class App extends Component {
     super(...args);
 
     this.state = {
-      page: Constants.Pages.HOME,
+      screen: Constants.Screens.HOME,
     };
 
     this.updateStoreData = this.updateStoreData.bind(this);
-    this.transitionToPage = this.transitionToPage.bind(this);
+    this.transitionToScreen = this.transitionToScreen.bind(this);
   }
 
   componentDidMount() {
@@ -27,23 +28,22 @@ class App extends Component {
 
     conn.onmessage = (e) => {
       const data = JSON.parse(e.data);
-
-      // TODO: Screen transition handling based on messages
-
       this.getActiveScreen().handleMessage(data, e);
     };
   }
 
   getActiveScreen() {
-    switch (this.state.page) {
-      case Constants.Pages.HOME:
+    switch (this.state.screen) {
+      case Constants.Screens.HOME:
         return this.homeScreen;
-      case Constants.Pages.CREATE_ROOM:
+      case Constants.Screens.CREATE_ROOM:
         return this.createRoomScreen;
-      case Constants.Pages.JOIN_ROOM:
+      case Constants.Screens.JOIN_ROOM:
         return this.joinRoomScreen;
-      case Constants.Pages.ROOM:
+      case Constants.Screens.ROOM:
         return this.roomScreen;
+      case Constants.Screens.GAME:
+          return this.gameScreen;
     }
 
     return null;
@@ -51,44 +51,49 @@ class App extends Component {
 
   render() {
     const { conn } = this.props;
-    const { page, ...storeData } = this.state;
+    const { screen, ...storeData } = this.state;
 
     const sharedProps = {
       conn: conn,
       ...storeData,
       updateStoreData: this.updateStoreData,
-      transitionToPage: this.transitionToPage,
+      transitionToScreen: this.transitionToScreen,
     };
 
     return html`
       <div class="app">
-        ${page === Constants.Pages.HOME && html`
+        ${screen === Constants.Screens.HOME && html`
           <${ScreenWrapper} ...${sharedProps}>
             <${HomeScreen} ref=${r => this.homeScreen = r} ...${sharedProps} />
           <//>
         `}
-        ${page === Constants.Pages.CREATE_ROOM && html`
+        ${screen === Constants.Screens.CREATE_ROOM && html`
           <${ScreenWrapper}
-            onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+            onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
             ...${sharedProps}
           >
             <${CreateRoomScreen} ref=${r => this.createRoomScreen = r} ...${sharedProps} />
           <//>
         `}
-        ${page === Constants.Pages.JOIN_ROOM && html`
+        ${screen === Constants.Screens.JOIN_ROOM && html`
           <${ScreenWrapper}
-            onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+            onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
             ...${sharedProps}
           >
             <${JoinRoomScreen} ref=${r => this.joinRoomScreen = r} ...${sharedProps} />
           <//>
         `}
-        ${page === Constants.Pages.ROOM && html`
+        ${screen === Constants.Screens.ROOM && html`
           <${ScreenWrapper}
-            onBack=${() => this.transitionToPage(Constants.Pages.HOME)}
+            onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
             ...${sharedProps}
           >
             <${RoomScreen} ref=${r => this.roomScreen = r} ...${sharedProps} />
+          <//>
+        `}
+        ${screen === Constants.Screens.GAME && html`
+          <${ScreenWrapper} ...${sharedProps}>
+            <${GameScreen} ref=${r => this.gameScreen = r} ...${sharedProps} />
           <//>
         `}
       </div>
@@ -99,12 +104,12 @@ class App extends Component {
     this.setState(newStoreData);
   }
 
-  transitionToPage(page) {
-    this.setState({ page: page });
+  transitionToScreen(screen) {
+    this.setState({ screen: screen });
   }
 
-  getStyle(page) {
-    return `display: ${this.state.page === page ? 'block' : 'none'}`;
+  getStyle(screen) {
+    return `display: ${this.state.screen === screen ? 'block' : 'none'}`;
   }
 }
 

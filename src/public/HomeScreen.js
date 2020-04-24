@@ -23,11 +23,11 @@ export default class HomeScreen extends Component {
   }
 
   openCreateRoom() {
-    this.props.transitionToPage(Constants.Pages.CREATE_ROOM);
+    this.props.transitionToScreen(Constants.Screens.CREATE_ROOM);
   }
 
   openJoinRoom() {
-    this.props.transitionToPage(Constants.Pages.JOIN_ROOM);
+    this.props.transitionToScreen(Constants.Screens.JOIN_ROOM);
   }
 
 }

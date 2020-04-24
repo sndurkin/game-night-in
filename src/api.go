@@ -44,6 +44,9 @@ type MovePlayerRequest struct {
 // team.
 type AddTeamRequest struct {}
 
+// StartGameRequest is used by the owner of a room to start the game.
+type StartGameRequest struct {}
+
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
 	Event string      `json:"event"`
@@ -60,7 +63,17 @@ type CreatedRoomEvent struct {
 
 // UpdatedRoomEvent is an event that is sent to all players
 // in a room whenever a change has been made to it (e.g. player joining,
-// player switching teams, etc)
+// player switching teams, etc).
 type UpdatedRoomEvent struct {
 	Teams [][]Player `json:"teams"`
+}
+
+// UpdatedGameEvent is an event that is sent to all players
+// playing a game whenever a change has been made to its state.
+type UpdatedGameEvent struct {
+	State string `json:"state"`
+	CardsLeftInRound int `json:"cardsLeftInRound"`
+	CurrentRound int `json:"currentRound"`
+	CurrentPlayers []int `json:"currentPlayers"`
+	CurrentlyPlayingTeam int `json:"currentlyPlayingTeam"`
 }

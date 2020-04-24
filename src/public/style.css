@@ -56,6 +56,7 @@ button.lone {
   padding-top: 2em;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 label {
@@ -87,6 +88,11 @@ label {
 .word-delete {
   margin-left: auto;
   padding: 0.5em 1em;
+}
+
+.teams {
+  flex: 1;
+  overflow: auto;
 }
 
 .team {

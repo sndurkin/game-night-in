@@ -53,7 +53,7 @@ export default class CreateRoomScreen extends Component {
       return;
     }
 
-    this.props.transitionToPage(Constants.Pages.ROOM);
+    this.props.transitionToScreen(Constants.Screens.ROOM);
     this.props.updateStoreData({
       name: this.state.name,
       isRoomOwner: true,
