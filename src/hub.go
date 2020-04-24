@@ -37,16 +37,16 @@ type PlayerInfo struct {
 	name        string
 	room        *GameRoom
 	isRoomOwner bool
-	words []string
+	words       []string
 }
 
 type Game struct {
-	state string
-	cards []string
-	currentCardsIdx int
-	currentRound int  // 0, 1, 2
-	currentPlayers []int // [ team0PlayerIdx, team1PlayerIdx ]
-	currentlyPlayingTeam int  // 0, 1, ...
+	state                string
+	cards                []string
+	currentCardsIdx      int
+	currentRound         int   // 0, 1, 2
+	currentPlayers       []int // [ team0PlayerIdx, team1PlayerIdx ]
+	currentlyPlayingTeam int   // 0, 1, ...
 }
 
 // GameRoom holds all the data about a particular game.
@@ -54,7 +54,7 @@ type GameRoom struct {
 	roomCode string
 	gameType string
 	teams    [][]*PlayerInfo
-	game *Game
+	game     *Game
 }
 
 // PlayerClient is used to connect clients with player information.
@@ -156,7 +156,7 @@ func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
 		gameType: req.GameType,
 		roomCode: strconv.Itoa(1000 + rand.Intn(9999-1000)),
 		teams:    make([][]*PlayerInfo, 2),
-		game: &Game{},
+		game:     &Game{},
 	}
 	h.rooms[room.roomCode] = room
 
@@ -333,10 +333,10 @@ func (h *Hub) sendUpdatedGameMessages(
 	var msg OutgoingMessage
 	msg.Event = "updated-game"
 	msg.Body = UpdatedGameEvent{
-		State: game.state,
-		CardsLeftInRound: len(game.cards) - game.currentCardsIdx,
-		CurrentRound: game.currentRound,
-		CurrentPlayers: game.currentPlayers,
+		State:                game.state,
+		CardsLeftInRound:     len(game.cards) - game.currentCardsIdx,
+		CurrentRound:         game.currentRound,
+		CurrentPlayers:       game.currentPlayers,
 		CurrentlyPlayingTeam: game.currentlyPlayingTeam,
 	}
 
@@ -400,8 +400,8 @@ func (h *Hub) removePlayerFromTeam(
 			player := players[idx]
 			room.teams[fromTeam] = append(
 				players[:idx],
-				players[idx+1:]...
-			);
+				players[idx+1:]...,
+			)
 			return player
 		}
 	}
@@ -413,9 +413,9 @@ func (h *Hub) convertPlayerInfosToPlayers(playerInfos []*PlayerInfo) []Player {
 	players := make([]Player, 0, len(playerInfos))
 	for _, playerInfo := range playerInfos {
 		players = append(players, Player{
-			Name:    playerInfo.name,
-			IsOwner: playerInfo.isRoomOwner,
-			WordsSet: len(playerInfo.words) > 0,
+			Name:        playerInfo.name,
+			IsRoomOwner: playerInfo.isRoomOwner,
+			WordsSet:    len(playerInfo.words) > 0,
 		})
 	}
 	return players

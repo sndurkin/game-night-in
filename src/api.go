@@ -3,9 +3,9 @@ package main
 // Player holds all the relevant information about a specific player
 // in a game room.
 type Player struct {
-	Name     string `json:"name"`
-	IsOwner  bool   `json:"isOwner,omitempty"`
-	WordsSet bool   `json:"wordsSet,omitempty"`
+	Name        string `json:"name"`
+	IsRoomOwner bool   `json:"isRoomOwner,omitempty"`
+	WordsSet    bool   `json:"wordsSet,omitempty"`
 }
 
 // IncomingMessage holds any incoming websocket message.
@@ -36,16 +36,16 @@ type SubmitWordsRequest struct {
 // from one team to another.
 type MovePlayerRequest struct {
 	PlayerName string `json:"playerName"`
-	FromTeam int `json:"fromTeam"`
-	ToTeam int `json:"toTeam"`
+	FromTeam   int    `json:"fromTeam"`
+	ToTeam     int    `json:"toTeam"`
 }
 
 // AddTeamRequest is used by the owner of a room to create a new
 // team.
-type AddTeamRequest struct {}
+type AddTeamRequest struct{}
 
 // StartGameRequest is used by the owner of a room to start the game.
-type StartGameRequest struct {}
+type StartGameRequest struct{}
 
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
@@ -71,9 +71,12 @@ type UpdatedRoomEvent struct {
 // UpdatedGameEvent is an event that is sent to all players
 // playing a game whenever a change has been made to its state.
 type UpdatedGameEvent struct {
-	State string `json:"state"`
-	CardsLeftInRound int `json:"cardsLeftInRound"`
-	CurrentRound int `json:"currentRound"`
-	CurrentPlayers []int `json:"currentPlayers"`
-	CurrentlyPlayingTeam int `json:"currentlyPlayingTeam"`
+	State                string `json:"state"`
+	CurrentServerTime    uint   `json:"currentServerTime,omitempty"`
+	TimerLength          int    `json:"timerLength,omitempty"`
+	CardsLeftInRound     int    `json:"cardsLeftInRound"`
+	CardsGuessedInTurn   int    `json:"cardsGuessedInTurn"`
+	CurrentRound         int    `json:"currentRound"`
+	CurrentPlayers       []int  `json:"currentPlayers"`
+	CurrentlyPlayingTeam int    `json:"currentlyPlayingTeam"`
 }

@@ -24,13 +24,19 @@ export default class GameScreen extends Component {
         `}
 
         <div class="game-area">
-          The current player is: ${this.currentPlayer.name}</div>
+          <div class="game-card"></div>
+          <div class="game-info">
+            <div class="cards-left">${game.cardsLeftInRound} cards left</div>
+            <div class="cards-guessed">+ ${game.cardsGuessedInTurn}</div>
+          </div>
+          <div class="current-player">${this.currentPlayer.name}</div>
         </div>
         <div class="button-bar">
           ${game.state === 'turn-start' && html`
-
+            <div></div>
           `}
           <button>Skip</button>
+          <div></div>
           <button onClick=${this.markWordCorrect}>Correct!</button>
         </div>
       </div>

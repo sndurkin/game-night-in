@@ -28,7 +28,7 @@ export default {
     Rounds: [
       'Describe',
       'Single word',
-      'Charades'
-    ]
-  }
+      'Charades',
+    ],
+  },
 };

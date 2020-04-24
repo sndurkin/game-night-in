@@ -6,18 +6,20 @@ export default class ScreenWrapper extends Component {
   constructor(...args) {
     super(...args);
 
-    // this.onBack = this.onBack.bind(this);
+
   }
 
-  render(props, state) {
-    const { roomCode, onBack, children, style } = props;
+  render() {
+    const { game, roomCode, onBack, children, style } = this.props;
 
     return html`
       <div class="screen-wrapper" style=${style}>
         <div class="screen-header">
-          ${onBack && html`
+          ${onBack ? html`
             <button onClick=${onBack}>Back</button>
-          `}
+          ` : game.state === 'turn-start' || game.state === 'turn-active' ? html`
+            <div class="time-left">${game.timeLeft}</div>
+          ` : null}
           ${roomCode && html`
             <div class="room-code">${roomCode}</div>
           `}

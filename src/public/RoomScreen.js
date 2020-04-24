@@ -51,10 +51,7 @@ export default class RoomScreen extends Component {
         ${error && html`
           <span class="label error">${error}</span>
         `}
-        ${!this.player.wordsSet
-          ? this.renderSubmitWords()
-          : this.renderTeams()
-        }
+        ${!this.player.wordsSet ? this.renderSubmitWords() : this.renderTeams()}
       </div>
     `;
   }
@@ -129,11 +126,13 @@ export default class RoomScreen extends Component {
                   <div class="player-name">
                     ${player.name}
                   </div>
-                  ${isRoomOwner && html`
+                  ${isRoomOwner ? html`
                     <a onClick=${() => this.showMovePlayerModal(idx, player)}>
                       Move
                     </a>
-                  `}
+                  ` : player.isRoomOwner ? html`
+                    <div>Owner</div>
+                  ` : ''}
                 </div>
               `)}
             </table>
@@ -168,8 +167,8 @@ export default class RoomScreen extends Component {
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
                 onClick=${() => {
-                  teamIdxToMoveFrom !== idx && this.movePlayer(idx)
-                }}
+    teamIdxToMoveFrom !== idx && this.movePlayer(idx);
+  }}
               >
                 Team ${idx + 1}
               </span>
@@ -209,7 +208,7 @@ export default class RoomScreen extends Component {
     }
     if (words.includes(wordBeingEntered)) {
       this.setState({
-        error: 'That word is already in your list'
+        error: 'That word is already in your list',
       });
       return;
     }
@@ -217,17 +216,17 @@ export default class RoomScreen extends Component {
     this.setState({
       error: '',
       words: words.concat(wordBeingEntered),
-      wordBeingEntered: ''
+      wordBeingEntered: '',
     });
   }
 
   deleteWord(wordIdx) {
     const { words } = this.state;
 
-    const newWords = words.slice()
+    const newWords = words.slice();
     newWords.splice(wordIdx, 1);
     this.setState({
-      words: newWords
+      words: newWords,
     });
   }
 
@@ -236,7 +235,7 @@ export default class RoomScreen extends Component {
     conn.send(JSON.stringify({
       action: Constants.Actions.SUBMIT_WORDS,
       body: {
-        words: this.state.words
+        words: this.state.words,
       },
     }));
   }

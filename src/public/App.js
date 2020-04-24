@@ -17,6 +17,7 @@ class App extends Component {
 
     this.state = {
       screen: Constants.Screens.HOME,
+      game: {},
     };
 
     this.updateStoreData = this.updateStoreData.bind(this);
@@ -43,7 +44,7 @@ class App extends Component {
       case Constants.Screens.ROOM:
         return this.roomScreen;
       case Constants.Screens.GAME:
-          return this.gameScreen;
+        return this.gameScreen;
     }
 
     return null;
@@ -123,6 +124,9 @@ window.onload = function() {
 
   conn = new WebSocket('ws://' + document.location.host + '/ws');
   conn.onclose = function(e) {
+    document.open();
+    document.write('');
+    document.close();
     render(html`
       <div>
         <h3>Oh no! We lost the connection to the server.</h3>

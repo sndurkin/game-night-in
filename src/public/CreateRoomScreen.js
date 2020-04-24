@@ -59,7 +59,7 @@ export default class CreateRoomScreen extends Component {
       isRoomOwner: true,
       roomCode: data.body.roomCode,
       teams: [
-        [{ name: this.state.name, isOwner: true }],
+        [{ name: this.state.name, isRoomOwner: true }],
       ],
     });
   }
