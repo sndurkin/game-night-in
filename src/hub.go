@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -43,6 +44,8 @@ type PlayerInfo struct {
 type Game struct {
 	state                string
 	cards                []string
+	currentServerTime    int64
+	timerLength          int
 	currentCardsIdx      int
 	currentRound         int   // 0, 1, 2
 	currentPlayers       []int // [ team0PlayerIdx, team1PlayerIdx ]
@@ -62,6 +65,21 @@ type PlayerClient struct {
 	client *Client
 	player Player
 }
+
+var (
+	validStateTransitions = map[string][]string{
+		"waiting-room": {
+			"turn-start",
+		},
+		"turn-start": {
+			"turn-active",
+		},
+		"turn-active": {
+			"turn-start",
+			"game-over",
+		},
+	}
+)
 
 func newHub() *Hub {
 	return &Hub{
@@ -161,9 +179,11 @@ func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
 
 	room := &GameRoom{
 		gameType: req.GameType,
-		roomCode: strconv.Itoa(1000 + rand.Intn(9999-1000)),
+		roomCode: strconv.Itoa(getRandomNumberInRange(1000, 9999)),
 		teams:    make([][]*PlayerInfo, 2),
-		game:     &Game{},
+		game: &Game{
+			state: "waiting-room",
+		},
 	}
 	h.rooms[room.roomCode] = room
 
@@ -185,7 +205,7 @@ func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
 		Team:     0,
 	}
 
-	h.sendOutgoingMessages(clientMessage, &msg, nil, nil)
+	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
 }
 
 func (h *Hub) joinRoom(clientMessage *ClientMessage, req JoinRoomRequest) {
@@ -256,7 +276,7 @@ func (h *Hub) movePlayer(clientMessage *ClientMessage, req MovePlayerRequest) {
 	if req.FromTeam >= len(room.teams) || req.ToTeam >= len(room.teams) {
 		msg.Event = "error"
 		msg.Error = "The team indexes are invalid."
-		h.sendOutgoingMessages(clientMessage, &msg, nil, nil)
+		h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
 		return
 	}
 
@@ -296,7 +316,12 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 	}
 
 	game := room.game
+	if !h.validateStateTransition(game.state, "turn-start") {
+		h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
+		return
+	}
 	game.state = "turn-start"
+
 	game.currentCardsIdx = 0
 	game.cards = []string{}
 	for _, teamPlayerInfos := range room.teams {
@@ -312,6 +337,9 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 
 	game.currentRound = 0
 	game.currentPlayers = make([]int, len(room.teams))
+	for i, players := range room.teams {
+		game.currentPlayers[i] = getRandomNumberInRange(0, len(players)-1)
+	}
 	game.currentlyPlayingTeam = 0
 
 	h.sendUpdatedGameMessages(clientMessage, room)
@@ -327,31 +355,74 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 		return
 	}
 
-	if !playerClient.isRoomOwner {
-		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+	currentPlayer := h.getCurrentPlayer(room)
+	if strings.Compare(currentPlayer.name, playerClient.name) != 0 {
+		h.sendErrorMessage(clientMessage, "You are not the current player.")
 		return
 	}
 
 	game := room.game
-	game.state = "turn-start"
-	game.currentCardsIdx = 0
-	game.cards = []string{}
-	for _, teamPlayerInfos := range room.teams {
-		for _, playerInfo := range teamPlayerInfos {
-			game.cards = append(game.cards, playerInfo.words...)
+
+	if !h.validateStateTransition(game.state, "turn-active") {
+		h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
+		return
+	}
+	game.state = "turn-active"
+
+	game.timerLength = 11
+	game.currentServerTime = time.Now().UnixNano() / 1000000
+	timer := time.NewTimer(time.Second * time.Duration(game.timerLength))
+
+	// Wait for timer to finish in an asynchronous goroutine
+	go func() {
+		// Block until timer finishes. When it is done, it sends a message
+		// on the channel timer.C. No other code in
+		// this goroutine is executed until that happens.
+		<-timer.C
+
+		if !h.validateStateTransition(game.state, "turn-start") {
+			log.Fatalf("Game was not in correct state when turn timer expired: %s", game.state)
+			return
+		}
+		game.state = "turn-start"
+
+		game.currentPlayers[game.currentlyPlayingTeam] = (game.currentPlayers[game.currentlyPlayingTeam] + 1) %
+			len(room.teams[game.currentlyPlayingTeam])
+		game.currentlyPlayingTeam = (game.currentlyPlayingTeam + 1) % len(game.currentPlayers)
+
+		h.sendUpdatedGameMessages(clientMessage, room)
+	}()
+
+	h.sendUpdatedGameMessages(clientMessage, room)
+}
+
+func (h *Hub) getCurrentPlayer(room *GameRoom) *PlayerInfo {
+	game := room.game
+	players := room.teams[game.currentlyPlayingTeam]
+	return players[game.currentPlayers[game.currentlyPlayingTeam]]
+}
+
+func (h *Hub) validateStateTransition(fromState, toState string) bool {
+	valid, ok := validStateTransitions[fromState]
+	if !ok {
+		return false
+	}
+
+	if !stringInSlice(valid, toState) {
+		return false
+	}
+
+	return true
+}
+
+func stringInSlice(arr []string, val string) bool {
+	for _, s := range arr {
+		if strings.EqualFold(s, val) {
+			return true
 		}
 	}
 
-	// TODO: rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(game.cards), func(i, j int) {
-		game.cards[i], game.cards[j] = game.cards[j], game.cards[i]
-	})
-
-	game.currentRound = 0
-	game.currentPlayers = make([]int, len(room.teams))
-	game.currentlyPlayingTeam = 0
-
-	h.sendUpdatedGameMessages(clientMessage, room)
+	return false
 }
 
 func (h *Hub) sendUpdatedRoomMessages(
@@ -364,7 +435,7 @@ func (h *Hub) sendUpdatedRoomMessages(
 		Teams: h.convertTeamsPlayerInfosToTeams(room.teams),
 	}
 
-	h.sendOutgoingMessages(clientMessage, &msg, &msg,
+	h.sendOutgoingMessages(clientMessage.client, &msg, &msg,
 		room)
 }
 
@@ -374,17 +445,51 @@ func (h *Hub) sendUpdatedGameMessages(
 ) {
 	game := room.game
 
-	var msg OutgoingMessage
-	msg.Event = "updated-game"
-	msg.Body = UpdatedGameEvent{
-		State:                game.state,
-		CardsLeftInRound:     len(game.cards) - game.currentCardsIdx,
-		CurrentRound:         game.currentRound,
-		CurrentPlayers:       game.currentPlayers,
-		CurrentlyPlayingTeam: game.currentlyPlayingTeam,
+	var lastCardGuessed string
+	if game.currentCardsIdx > 0 {
+		lastCardGuessed = game.cards[game.currentCardsIdx]
 	}
 
-	h.sendOutgoingMessages(clientMessage, &msg, &msg,
+	var cards []string
+	var currentServerTime int64
+	var timerLength int
+	if strings.EqualFold(game.state, "turn-active") {
+		cards = game.cards[game.currentCardsIdx:]
+
+		currentServerTime = game.currentServerTime
+		timerLength = game.timerLength
+	}
+
+	var msgToCurrentPlayer OutgoingMessage
+	msgToCurrentPlayer.Event = "updated-game"
+	msgToCurrentPlayer.Body = UpdatedGameEvent{
+		State:                 game.state,
+		LastCardGuessed:       lastCardGuessed,
+		CurrentServerTime:     currentServerTime,
+		TimerLength:           timerLength,
+		Cards:                 cards,
+		NumCardsLeftInRound:   len(game.cards) - game.currentCardsIdx,
+		NumCardsGuessedInTurn: 0,
+		CurrentRound:          game.currentRound,
+		CurrentPlayers:        game.currentPlayers,
+		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
+	}
+
+	var msgToOtherPlayers OutgoingMessage
+	msgToOtherPlayers.Event = "updated-game"
+	msgToOtherPlayers.Body = UpdatedGameEvent{
+		State:                 game.state,
+		LastCardGuessed:       lastCardGuessed,
+		CurrentServerTime:     currentServerTime,
+		TimerLength:           timerLength,
+		NumCardsLeftInRound:   len(game.cards) - game.currentCardsIdx,
+		NumCardsGuessedInTurn: 0,
+		CurrentRound:          game.currentRound,
+		CurrentPlayers:        game.currentPlayers,
+		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
+	}
+
+	h.sendOutgoingMessages(clientMessage.client, &msgToCurrentPlayer, &msgToOtherPlayers,
 		room)
 }
 
@@ -392,39 +497,39 @@ func (h *Hub) sendErrorMessage(clientMessage *ClientMessage, err string) {
 	var msg OutgoingMessage
 	msg.Event = "error"
 	msg.Error = err
-	h.sendOutgoingMessages(clientMessage, &msg, nil, nil)
+	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
 }
 
 func (h *Hub) sendOutgoingMessages(
-	clientMessage *ClientMessage,
-	msg *OutgoingMessage,
-	otherOutgoingMessage *OutgoingMessage,
+	primaryClient *Client,
+	primaryMsg *OutgoingMessage,
+	secondaryMsg *OutgoingMessage,
 	room *GameRoom) {
 	var err error
-	output, err := json.Marshal(*msg)
+	primaryOutput, err := json.Marshal(*primaryMsg)
 	if err != nil {
 		panic(err) // TODO: handle properly
 	}
 
-	var otherOutput []byte
-	if otherOutgoingMessage != nil {
-		otherOutput, err = json.Marshal(otherOutgoingMessage)
+	var secondaryOutput []byte
+	if secondaryMsg != nil {
+		secondaryOutput, err = json.Marshal(secondaryMsg)
 		if err != nil {
 			panic(err) // TODO: handle properly
 		}
 	}
 
 	for client := range h.playerClients {
-		if client == clientMessage.client {
+		if client == primaryClient {
 			select {
-			case client.send <- output:
+			case client.send <- primaryOutput:
 			default:
 				close(client.send)
 				delete(h.playerClients, client)
 			}
-		} else if otherOutgoingMessage != nil && (room == nil || h.playerClients[client].room == room) {
+		} else if secondaryMsg != nil && (room == nil || h.playerClients[client].room == room) {
 			select {
-			case client.send <- otherOutput:
+			case client.send <- secondaryOutput:
 			default:
 				close(client.send)
 				delete(h.playerClients, client)
@@ -471,4 +576,12 @@ func (h *Hub) convertTeamsPlayerInfosToTeams(teamsPlayerInfos [][]*PlayerInfo) [
 		teams = append(teams, h.convertPlayerInfosToPlayers(teamPlayerInfos))
 	}
 	return teams
+}
+
+func getRandomNumberInRange(min, max int) int {
+	if min == max {
+		return min
+	}
+
+	return min + rand.Intn(max-min)
 }
