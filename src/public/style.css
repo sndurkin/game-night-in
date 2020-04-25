@@ -155,4 +155,32 @@ label {
 
 .game-info {
   display: flex;
+  align-items: center;
+}
+
+.cards-left-num {
+  font-weight: bold;
+}
+
+.cards-left-text {
+  color: #555;
+}
+
+.cards-guessed {
+  margin-left: auto;
+  font-weight: bold;
+  font-size: 1.5em;
+}
+
+.current-player {
+  text-align: center;
+  height: 3em;
+  line-height: 3em;
+  font-weight: bold;
+  border-top: 1px solid #999;
+  margin: .5em 0;
+}
+
+.game-actions {
+  border-top: 1px solid #999;
 }

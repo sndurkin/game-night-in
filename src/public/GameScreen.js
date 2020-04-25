@@ -11,6 +11,10 @@ export default class GameScreen extends Component {
     this.state = {
 
     };
+
+    this.startTurn = this.startTurn.bind(this);
+    this.skipWord = this.skipWord.bind(this);
+    this.markWordCorrect = this.markWordCorrect.bind(this);
   }
 
   render() {
@@ -24,21 +28,25 @@ export default class GameScreen extends Component {
         `}
 
         <div class="game-area">
-          <div class="game-card"></div>
+          <div class="game-card">
+
+          </div>
           <div class="game-info">
-            <div class="cards-left">${game.cardsLeftInRound} cards left</div>
+            <div class="cards-left-ct">
+              <div class="cards-left-num">${game.cardsLeftInRound}</div>
+              <div class="cards-left-text">cards left</div>
+            </div>
             <div class="cards-guessed">+ ${game.cardsGuessedInTurn}</div>
           </div>
-          <div class="current-player">${this.currentPlayer.name}</div>
+          <div class="current-player">
+            ${this.turnStr}
+          </div>
         </div>
-        <div class="button-bar">
-          ${game.state === 'turn-start' && html`
-            <div></div>
-          `}
-          <button>Skip</button>
-          <div></div>
-          <button onClick=${this.markWordCorrect}>Correct!</button>
-        </div>
+        ${this.isCurrentPlayer && html`
+          <div class="button-bar game-actions">
+            ${this.buttonBar}
+          </div>
+        `}
       </div>
     `;
   }
@@ -63,17 +71,25 @@ export default class GameScreen extends Component {
     }));
   }
 
+  skipWord() {
+    const { conn } = this.props;
+    conn.send(JSON.stringify({
+      action: Constants.Actions.SKIP_WORD,
+      body: {},
+    }));
+  }
+
   markWordCorrect() {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.START_TURN,
+      action: Constants.Actions.MARK_WORD_CORRECT,
       body: {},
     }));
   }
 
   get isCurrentPlayer() {
     const { name } = this.props;
-    this.currentPlayer.name === name;
+    return this.currentPlayer.name === name;
   }
 
   get currentPlayer() {
@@ -82,6 +98,46 @@ export default class GameScreen extends Component {
     const players = teams[game.currentlyPlayingTeam];
     const playerIdx = game.currentPlayers[game.currentlyPlayingTeam];
     return players[playerIdx];
+  }
+
+  get turnStr() {
+    if (this.isCurrentPlayer) {
+      return "It's your turn!";
+    }
+
+    if (this.currentPlayer.name.endsWith('s')) {
+      return this.currentPlayer.name + "' turn";
+    }
+
+    return this.currentPlayer.name + "'s turn";
+  }
+
+  get buttonBar() {
+    const { game } = this.props;
+    switch (game.state) {
+      case 'turn-start':
+        return html`
+          <button onClick=${this.startTurn}>Start!</button>
+        `;
+      case 'turn-active':
+        return html`
+          <button
+            class="pseudo"
+            onClick=${this.skipWord}
+          >
+            Skip
+          </button>
+          <div></div>
+          <button
+            class="success"
+            onClick=${this.markWordCorrect}
+          >
+            Correct!
+          </button>
+        `;
+    }
+
+    return null;
   }
 
 }

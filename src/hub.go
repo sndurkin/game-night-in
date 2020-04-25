@@ -144,6 +144,13 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 			panic(err)
 		}
 		h.startGame(clientMessage, req)
+	case "start-turn":
+		var req StartTurnRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			//log.Fatal(err)
+			panic(err)
+		}
+		h.startTurn(clientMessage, req)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
@@ -275,6 +282,43 @@ func (h *Hub) addTeam(clientMessage *ClientMessage, req AddTeamRequest) {
 
 func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 	log.Printf("Start game request\n")
+
+	playerClient := h.playerClients[clientMessage.client]
+	room := playerClient.room
+	if room == nil {
+		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		return
+	}
+
+	if !playerClient.isRoomOwner {
+		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+		return
+	}
+
+	game := room.game
+	game.state = "turn-start"
+	game.currentCardsIdx = 0
+	game.cards = []string{}
+	for _, teamPlayerInfos := range room.teams {
+		for _, playerInfo := range teamPlayerInfos {
+			game.cards = append(game.cards, playerInfo.words...)
+		}
+	}
+
+	// TODO: rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(game.cards), func(i, j int) {
+		game.cards[i], game.cards[j] = game.cards[j], game.cards[i]
+	})
+
+	game.currentRound = 0
+	game.currentPlayers = make([]int, len(room.teams))
+	game.currentlyPlayingTeam = 0
+
+	h.sendUpdatedGameMessages(clientMessage, room)
+}
+
+func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
+	log.Printf("Start turn request\n")
 
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room

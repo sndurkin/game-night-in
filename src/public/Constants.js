@@ -15,6 +15,8 @@ export default {
 
     START_GAME: 'start-game',
     START_TURN: 'start-turn',
+    MARK_WORD_CORRECT: 'mark-word-correct',
+    SKIP_WORD: 'skip-word',
   },
   Events: {
     CREATED_ROOM: 'created-room',

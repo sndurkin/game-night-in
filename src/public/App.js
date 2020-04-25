@@ -124,9 +124,10 @@ window.onload = function() {
 
   conn = new WebSocket('ws://' + document.location.host + '/ws');
   conn.onclose = function(e) {
-    document.open();
-    document.write('');
-    document.close();
+    while (document.body.firstChild) {
+      document.body.removeChild(document.body.firstChild);
+    }
+
     render(html`
       <div>
         <h3>Oh no! We lost the connection to the server.</h3>

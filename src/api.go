@@ -47,6 +47,9 @@ type AddTeamRequest struct{}
 // StartGameRequest is used by the owner of a room to start the game.
 type StartGameRequest struct{}
 
+// StartTurnRequest is used by the current player to start their turn.
+type StartTurnRequest struct{}
+
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
 	Event string      `json:"event"`
