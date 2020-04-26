@@ -9,7 +9,6 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -44,12 +43,13 @@ type PlayerInfo struct {
 
 type Game struct {
 	state                 string
+	turnJustStarted bool
 	cardsInRound          []string
 	currentServerTime     int64
 	timerLength           int
-	currentCardsIdx       int
-	numCardsGuessedInTurn int
 	lastCardGuessed string
+	numCardsGuessedInTurn int
+	teamScoresByRound [][]int
 	currentRound          int   // 0, 1, 2
 	currentPlayers        []int // [ team0PlayerIdx, team1PlayerIdx ]
 	currentlyPlayingTeam  int   // 0, 1, ...
@@ -193,6 +193,7 @@ func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
 		teams:    make([][]*PlayerInfo, 2),
 		game: &Game{
 			state: "waiting-room",
+			teamScoresByRound: make([][]int, 3),
 		},
 	}
 	h.rooms[room.roomCode] = room
@@ -234,7 +235,7 @@ func (h *Hub) joinRoom(clientMessage *ClientMessage, req JoinRoomRequest) {
 	log.Printf("%+v\n", room)
 	for _, teamPlayerInfos := range room.teams {
 		for _, playerInfo := range teamPlayerInfos {
-			if strings.EqualFold(playerInfo.name, req.Name) {
+			if playerInfo.name == req.Name {
 				// TODO: check if same IP address so we can replace the playerClient with the one
 				// that probably has lost connection?
 
@@ -330,9 +331,15 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 		h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
 		return
 	}
+	game.turnJustStarted = true
 	game.state = "turn-start"
 
-	h.reshuffleCardsForTurn(room)
+	h.reshuffleCardsForRound(room)
+
+	// Init team scores
+	game.teamScoresByRound[0] = make([]int, len(room.teams))
+	game.teamScoresByRound[1] = make([]int, len(room.teams))
+	game.teamScoresByRound[2] = make([]int, len(room.teams))
 
 	game.currentRound = 0
 	game.currentPlayers = make([]int, len(room.teams))
@@ -344,19 +351,19 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 	h.sendUpdatedGameMessages(clientMessage, room)
 }
 
-func (h *Hub) reshuffleCardsForTurn(room *GameRoom) []string {
-	game.currentCardsIdx = 0
+func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
+	game := room.game
 
-	game.cardsInTurn = []string{}
+	game.cardsInRound = []string{}
 	for _, teamPlayerInfos := range room.teams {
 		for _, playerInfo := range teamPlayerInfos {
-			game.cardsInTurn = append(game.cardsInTurn, playerInfo.words...)
+			game.cardsInRound = append(game.cardsInRound, playerInfo.words...)
 		}
 	}
 
 	// TODO: rand.Seed(time.Now().UnixNano())
-	arr := game.cardsInTurn
-	rand.Shuffle(len(game.cardsInTurn), func(i, j int) {
+	arr := game.cardsInRound
+	rand.Shuffle(len(game.cardsInRound), func(i, j int) {
 		arr[i], arr[j] = arr[j], arr[i]
 	})
 }
@@ -372,7 +379,7 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 	}
 
 	currentPlayer := h.getCurrentPlayer(room)
-	if strings.Compare(currentPlayer.name, playerClient.name) != 0 {
+	if currentPlayer.name != playerClient.name {
 		h.sendErrorMessage(clientMessage, "You are not the current player.")
 		return
 	}
@@ -383,8 +390,10 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 		h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
 		return
 	}
+	game.turnJustStarted = true
 	game.state = "turn-active"
 
+	game.numCardsGuessedInTurn = 0
 	game.lastCardGuessed = ""
 	game.timerLength = 11
 	game.currentServerTime = time.Now().UnixNano() / 1000000
@@ -398,10 +407,17 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 		<-timer.C
 
 		if !h.validateStateTransition(game.state, "turn-start") {
+			if game.state == "turn-start" || game.state == "game-over" {
+				// Round or game finished before the player's turn timer expired,
+				// so do nothing.
+				return
+			}
+
 			log.Fatalf("Game was not in correct state when turn timer expired: %s", game.state)
 			return
 		}
 
+		game.turnJustStarted = false
 		game.state = "turn-start"
 		h.moveToNextPlayerAndTeam(room)
 
@@ -422,41 +438,47 @@ func (h *Hub) changeCard(clientMessage *ClientMessage, req ChangeCardRequest) {
 	}
 
 	currentPlayer := h.getCurrentPlayer(room)
-	if strings.Compare(currentPlayer.name, playerClient.name) != 0 {
+	if currentPlayer.name != playerClient.name {
 		h.sendErrorMessage(clientMessage, "You are not the current player.")
 		return
 	}
 
 	game := room.game
-	if !strings.EqualFold(game.state, "turn-active") {
+	if game.state != "turn-active" {
 		// Ignore, the turn is probably over.
 		return
 	}
 
-	if strings.EqualFold(req.ChangeType, "correct") {
+	game.turnJustStarted = false
+	if req.ChangeType == "correct" {
+		// Increment score for current team and the current turn.
+		game.teamScoresByRound[game.currentRound][game.currentlyPlayingTeam]++
 		game.numCardsGuessedInTurn++
-		game.lastCardGuessed = game.cardsInTurn[game.currentCardsIdx]
-		game.cardsInTurn = append(game.cardsInTurn[0:game.currentCardsIdx],
-			game.cardsInTurn[game.currentCardsIdx+1:]...)
 
-		if len(game.cardsInTurn) == 0 {
+		game.lastCardGuessed = game.cardsInRound[0]
+		game.cardsInRound = game.cardsInRound[1:]
+
+		if len(game.cardsInRound) == 0 {
 			game.currentRound++
 			if game.currentRound < 3 {
+				// Round over, moving to next round
 				game.state = "turn-start"
-				h.reshuffleCardsForTurn(room)
+
+				h.reshuffleCardsForRound(room)
 				h.moveToNextPlayerAndTeam(room)
+
+				// Each round should start with a different team.
+				//
+				// TODO: The teams should be re-ordered based on score.
 				game.currentlyPlayingTeam = getRandomNumberInRange(0,
 					len(room.teams)-1)
-			}
-			else {
+			} else {
 				// TODO: Game over
 			}
 		}
-	}
-	else {
-		// Skip this card
-		game.currentCardsIdx = (game.currentCardsIdx + 1) %
-			len(game.cardsInTurn)
+	} else {
+		// Skip this card, push it to the end
+		game.cardsInRound = append(game.cardsInRound[1:], game.cardsInRound[0])
 	}
 
 	h.sendUpdatedGameMessages(clientMessage, room)
@@ -490,7 +512,7 @@ func (h *Hub) validateStateTransition(fromState, toState string) bool {
 
 func stringInSlice(arr []string, val string) bool {
 	for _, s := range arr {
-		if strings.EqualFold(s, val) {
+		if s == val {
 			return true
 		}
 	}
@@ -518,31 +540,29 @@ func (h *Hub) sendUpdatedGameMessages(
 ) {
 	game := room.game
 
-	var lastCardGuessed string
-	if game.currentCardsIdx > 0 {
-		lastCardGuessed = game.cardsInTurn[game.currentCardsIdx]
-	}
-
-	var cards []string
+	var currentCard string
 	var currentServerTime int64
 	var timerLength int
-	if strings.EqualFold(game.state, "turn-active") {
-		cards = game.cards[game.currentCardsIdx:]
+	if game.state == "turn-active" {
+		currentCard = game.cardsInRound[0]
 
-		currentServerTime = game.currentServerTime
-		timerLength = game.timerLength
+		if (game.turnJustStarted) {
+			currentServerTime = game.currentServerTime
+			timerLength = game.timerLength
+		}
 	}
 
 	var msgToCurrentPlayer OutgoingMessage
 	msgToCurrentPlayer.Event = "updated-game"
 	msgToCurrentPlayer.Body = UpdatedGameEvent{
 		State:                 game.state,
-		LastCardGuessed:       lastCardGuessed,
+		LastCardGuessed:       game.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
 		TimerLength:           timerLength,
-		Cards:                 cards,
-		NumCardsLeftInRound:   len(game.cards),
+		CurrentCard:           currentCard,
+		NumCardsLeftInRound:   len(game.cardsInRound),
 		NumCardsGuessedInTurn: game.numCardsGuessedInTurn,
+		TeamScoresByRound:     game.teamScoresByRound,
 		CurrentRound:          game.currentRound,
 		CurrentPlayers:        game.currentPlayers,
 		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
@@ -552,11 +572,12 @@ func (h *Hub) sendUpdatedGameMessages(
 	msgToOtherPlayers.Event = "updated-game"
 	msgToOtherPlayers.Body = UpdatedGameEvent{
 		State:                 game.state,
-		LastCardGuessed:       lastCardGuessed,
+		LastCardGuessed:       game.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
 		TimerLength:           timerLength,
-		NumCardsLeftInRound:   len(game.cards) - game.currentCardsIdx,
-		NumCardsGuessedInTurn: 0,
+		NumCardsLeftInRound:   len(game.cardsInRound),
+		NumCardsGuessedInTurn: game.numCardsGuessedInTurn,
+		TeamScoresByRound:     game.teamScoresByRound,
 		CurrentRound:          game.currentRound,
 		CurrentPlayers:        game.currentPlayers,
 		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
@@ -618,7 +639,7 @@ func (h *Hub) removePlayerFromTeam(
 ) *PlayerInfo {
 	players := room.teams[fromTeam]
 	for idx, player := range players {
-		if strings.Compare(player.name, playerName) == 0 {
+		if player.name == playerName {
 			player := players[idx]
 			room.teams[fromTeam] = append(
 				players[:idx],

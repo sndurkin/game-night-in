@@ -17,8 +17,6 @@ export default class ScreenWrapper extends Component {
         <div class="screen-header">
           ${onBack ? html`
             <button onClick=${onBack}>Back</button>
-          ` : game.state === 'turn-start' || game.state === 'turn-active' ? html`
-            <div class="time-left">${game.timeLeft}</div>
           ` : null}
           ${roomCode && html`
             <div class="room-code">${roomCode}</div>

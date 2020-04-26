@@ -16,9 +16,41 @@ export default class GameScreen extends Component {
     this.changeCard = this.changeCard.bind(this);
   }
 
+  componentDidUpdate() {
+    const { game } = this.props;
+
+    if (game.state === 'turn-start') {
+      this.setState({
+        timeLeft: null
+      });
+
+      clearInterval(this.intervalId);
+    }
+    else if (game.currentServerTime && game.timerLength && !this.state.timeLeft) {
+      this.startLocalTime = new Date().getTime();
+      const clientServerDiff = this.startLocalTime - game.currentServerTime;
+      const localTimerLength = game.timerLength - (clientServerDiff / 1000);
+      this.endLocalTime = this.startLocalTime + (localTimerLength * 1000);
+
+      this.intervalId = setInterval(() => {
+        const timeLeft = Math.max(0, Math.floor((this.endLocalTime - new Date().getTime()) / 1000));
+        this.setState({
+          timeLeft: timeLeft || null,
+        });
+
+        if (timeLeft === 0) {
+          clearInterval(this.intervalId);
+        }
+      }, 1000);
+      this.setState({
+        timeLeft: Math.max(0, Math.floor((this.endLocalTime - new Date().getTime()) / 1000)),
+      });
+    }
+  }
+
   render() {
     const { game } = this.props;
-    const { error } = this.state;
+    const { error, timeLeft } = this.state;
 
     return html`
       <div class="screen">
@@ -28,8 +60,11 @@ export default class GameScreen extends Component {
 
         <div class="game-area">
           <div class="game-card">
-
+            ${game.currentCard}
           </div>
+          ${game.state === 'turn-start' || game.state === 'turn-active' ? html`
+            <div class="time-left">${timeLeft}</div>
+          ` : null}
           <div class="game-info">
             <div class="cards-left-ct">
               <div class="cards-left-num">${game.numCardsLeftInRound}</div>

@@ -13,7 +13,7 @@ export default class RoomScreen extends Component {
 
       wordBeingEntered: '',
       words: [
-        'a', 'b', 'c', 'd', 'e',
+        '1', '2', '3', '4', '5',
       ],
 
       showMovePlayerModal: false,
@@ -167,8 +167,8 @@ export default class RoomScreen extends Component {
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
                 onClick=${() => {
-    teamIdxToMoveFrom !== idx && this.movePlayer(idx);
-  }}
+        teamIdxToMoveFrom !== idx && this.movePlayer(idx);
+      }}
               >
                 Team ${idx + 1}
               </span>

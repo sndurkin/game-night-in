@@ -85,10 +85,10 @@ type UpdatedGameEvent struct {
 	CurrentServerTime     int64    `json:"currentServerTime,omitempty"`
 	TimerLength           int      `json:"timerLength,omitempty"`
 	LastCardGuessed       string   `json:"lastCardGuessed"`
-	Cards                 []string `json:"cards,omitempty"`
+	CurrentCard           string    `json:"currentCard,omitempty"`
 	NumCardsLeftInRound   int      `json:"numCardsLeftInRound"`
 	NumCardsGuessedInTurn int      `json:"numCardsGuessedInTurn"`
-	TeamScoresByRound     int      `json:"teamScoresByRound"`
+	TeamScoresByRound     [][]int  `json:"teamScoresByRound"`
 	CurrentRound          int      `json:"currentRound"`
 	CurrentPlayers        []int    `json:"currentPlayers"`
 	CurrentlyPlayingTeam  int      `json:"currentlyPlayingTeam"`
