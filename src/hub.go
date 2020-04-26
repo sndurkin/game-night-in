@@ -39,17 +39,20 @@ type PlayerInfo struct {
 	room        *GameRoom
 	isRoomOwner bool
 	words       []string
+	numCardsGuessedByRound []int
 }
 
 type Game struct {
-	state                string
-	cards                []string
-	currentServerTime    int64
-	timerLength          int
-	currentCardsIdx      int
-	currentRound         int   // 0, 1, 2
-	currentPlayers       []int // [ team0PlayerIdx, team1PlayerIdx ]
-	currentlyPlayingTeam int   // 0, 1, ...
+	state                 string
+	cardsInRound          []string
+	currentServerTime     int64
+	timerLength           int
+	currentCardsIdx       int
+	numCardsGuessedInTurn int
+	lastCardGuessed string
+	currentRound          int   // 0, 1, 2
+	currentPlayers        []int // [ team0PlayerIdx, team1PlayerIdx ]
+	currentlyPlayingTeam  int   // 0, 1, ...
 }
 
 // GameRoom holds all the data about a particular game.
@@ -169,6 +172,13 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 			panic(err)
 		}
 		h.startTurn(clientMessage, req)
+	case "change-card":
+		var req ChangeCardRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			//log.Fatal(err)
+			panic(err)
+		}
+		h.changeCard(clientMessage, req)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
@@ -252,7 +262,7 @@ func (h *Hub) submitWords(clientMessage *ClientMessage, req SubmitWordsRequest) 
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room
 	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
 		return
 	}
 
@@ -269,7 +279,7 @@ func (h *Hub) movePlayer(clientMessage *ClientMessage, req MovePlayerRequest) {
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room
 	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
 		return
 	}
 
@@ -292,7 +302,7 @@ func (h *Hub) addTeam(clientMessage *ClientMessage, req AddTeamRequest) {
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room
 	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
 		return
 	}
 
@@ -306,7 +316,7 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room
 	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
 		return
 	}
 
@@ -322,27 +332,33 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 	}
 	game.state = "turn-start"
 
-	game.currentCardsIdx = 0
-	game.cards = []string{}
-	for _, teamPlayerInfos := range room.teams {
-		for _, playerInfo := range teamPlayerInfos {
-			game.cards = append(game.cards, playerInfo.words...)
-		}
-	}
-
-	// TODO: rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(game.cards), func(i, j int) {
-		game.cards[i], game.cards[j] = game.cards[j], game.cards[i]
-	})
+	h.reshuffleCardsForTurn(room)
 
 	game.currentRound = 0
 	game.currentPlayers = make([]int, len(room.teams))
 	for i, players := range room.teams {
 		game.currentPlayers[i] = getRandomNumberInRange(0, len(players)-1)
 	}
-	game.currentlyPlayingTeam = 0
+	game.currentlyPlayingTeam = getRandomNumberInRange(0, len(room.teams)-1)
 
 	h.sendUpdatedGameMessages(clientMessage, room)
+}
+
+func (h *Hub) reshuffleCardsForTurn(room *GameRoom) []string {
+	game.currentCardsIdx = 0
+
+	game.cardsInTurn = []string{}
+	for _, teamPlayerInfos := range room.teams {
+		for _, playerInfo := range teamPlayerInfos {
+			game.cardsInTurn = append(game.cardsInTurn, playerInfo.words...)
+		}
+	}
+
+	// TODO: rand.Seed(time.Now().UnixNano())
+	arr := game.cardsInTurn
+	rand.Shuffle(len(game.cardsInTurn), func(i, j int) {
+		arr[i], arr[j] = arr[j], arr[i]
+	})
 }
 
 func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
@@ -351,7 +367,7 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room
 	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game room.")
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
 		return
 	}
 
@@ -369,6 +385,7 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 	}
 	game.state = "turn-active"
 
+	game.lastCardGuessed = ""
 	game.timerLength = 11
 	game.currentServerTime = time.Now().UnixNano() / 1000000
 	timer := time.NewTimer(time.Second * time.Duration(game.timerLength))
@@ -384,16 +401,72 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 			log.Fatalf("Game was not in correct state when turn timer expired: %s", game.state)
 			return
 		}
-		game.state = "turn-start"
 
-		game.currentPlayers[game.currentlyPlayingTeam] = (game.currentPlayers[game.currentlyPlayingTeam] + 1) %
-			len(room.teams[game.currentlyPlayingTeam])
-		game.currentlyPlayingTeam = (game.currentlyPlayingTeam + 1) % len(game.currentPlayers)
+		game.state = "turn-start"
+		h.moveToNextPlayerAndTeam(room)
 
 		h.sendUpdatedGameMessages(clientMessage, room)
 	}()
 
 	h.sendUpdatedGameMessages(clientMessage, room)
+}
+
+func (h *Hub) changeCard(clientMessage *ClientMessage, req ChangeCardRequest) {
+	log.Printf("Change card request: %s\n", req.ChangeType)
+
+	playerClient := h.playerClients[clientMessage.client]
+	room := playerClient.room
+	if room == nil {
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
+		return
+	}
+
+	currentPlayer := h.getCurrentPlayer(room)
+	if strings.Compare(currentPlayer.name, playerClient.name) != 0 {
+		h.sendErrorMessage(clientMessage, "You are not the current player.")
+		return
+	}
+
+	game := room.game
+	if !strings.EqualFold(game.state, "turn-active") {
+		// Ignore, the turn is probably over.
+		return
+	}
+
+	if strings.EqualFold(req.ChangeType, "correct") {
+		game.numCardsGuessedInTurn++
+		game.lastCardGuessed = game.cardsInTurn[game.currentCardsIdx]
+		game.cardsInTurn = append(game.cardsInTurn[0:game.currentCardsIdx],
+			game.cardsInTurn[game.currentCardsIdx+1:]...)
+
+		if len(game.cardsInTurn) == 0 {
+			game.currentRound++
+			if game.currentRound < 3 {
+				game.state = "turn-start"
+				h.reshuffleCardsForTurn(room)
+				h.moveToNextPlayerAndTeam(room)
+				game.currentlyPlayingTeam = getRandomNumberInRange(0,
+					len(room.teams)-1)
+			}
+			else {
+				// TODO: Game over
+			}
+		}
+	}
+	else {
+		// Skip this card
+		game.currentCardsIdx = (game.currentCardsIdx + 1) %
+			len(game.cardsInTurn)
+	}
+
+	h.sendUpdatedGameMessages(clientMessage, room)
+}
+
+func (h *Hub) moveToNextPlayerAndTeam(room *GameRoom) {
+	game := room.game
+	t := game.currentlyPlayingTeam
+	game.currentPlayers[t] = (game.currentPlayers[t] + 1) % len(room.teams[t])
+	game.currentlyPlayingTeam = (t + 1) % len(game.currentPlayers)
 }
 
 func (h *Hub) getCurrentPlayer(room *GameRoom) *PlayerInfo {
@@ -447,7 +520,7 @@ func (h *Hub) sendUpdatedGameMessages(
 
 	var lastCardGuessed string
 	if game.currentCardsIdx > 0 {
-		lastCardGuessed = game.cards[game.currentCardsIdx]
+		lastCardGuessed = game.cardsInTurn[game.currentCardsIdx]
 	}
 
 	var cards []string
@@ -468,8 +541,8 @@ func (h *Hub) sendUpdatedGameMessages(
 		CurrentServerTime:     currentServerTime,
 		TimerLength:           timerLength,
 		Cards:                 cards,
-		NumCardsLeftInRound:   len(game.cards) - game.currentCardsIdx,
-		NumCardsGuessedInTurn: 0,
+		NumCardsLeftInRound:   len(game.cards),
+		NumCardsGuessedInTurn: game.numCardsGuessedInTurn,
 		CurrentRound:          game.currentRound,
 		CurrentPlayers:        game.currentPlayers,
 		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
@@ -564,7 +637,7 @@ func (h *Hub) convertPlayerInfosToPlayers(playerInfos []*PlayerInfo) []Player {
 		players = append(players, Player{
 			Name:        playerInfo.name,
 			IsRoomOwner: playerInfo.isRoomOwner,
-			WordsSet:    len(playerInfo.words) > 0,
+			WordsSubmitted:    len(playerInfo.words) > 0,
 		})
 	}
 	return players

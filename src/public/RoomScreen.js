@@ -51,7 +51,7 @@ export default class RoomScreen extends Component {
         ${error && html`
           <span class="label error">${error}</span>
         `}
-        ${!this.player.wordsSet ? this.renderSubmitWords() : this.renderTeams()}
+        ${!this.player.wordsSubmitted ? this.renderSubmitWords() : this.renderTeams()}
       </div>
     `;
   }
@@ -107,7 +107,7 @@ export default class RoomScreen extends Component {
     // and everyone needs to have their words submitted.
     const canStartGame = teams.every(players => {
       return players.length >= Constants.Fishbowl.MIN_PLAYERS_PER_TEAM
-        && players.every(p => p.wordsSet);
+        && players.every(p => p.wordsSubmitted);
     });
 
     return html`
@@ -121,7 +121,7 @@ export default class RoomScreen extends Component {
               ` : (team || []).map(player => html`
                 <div class="team-row">
                   <div class="player-ready">
-                    ${player.wordsSet ? '✔' : ''}
+                    ${player.wordsSubmitted ? '✔' : ''}
                   </div>
                   <div class="player-name">
                     ${player.name}

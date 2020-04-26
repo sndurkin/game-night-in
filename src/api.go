@@ -5,7 +5,7 @@ package main
 type Player struct {
 	Name        string `json:"name"`
 	IsRoomOwner bool   `json:"isRoomOwner,omitempty"`
-	WordsSet    bool   `json:"wordsSet,omitempty"`
+	WordsSubmitted    bool   `json:"wordsSubmitted,omitempty"`
 }
 
 // IncomingMessage holds any incoming websocket message.
@@ -50,6 +50,13 @@ type StartGameRequest struct{}
 // StartTurnRequest is used by the current player to start their turn.
 type StartTurnRequest struct{}
 
+// ChangeCardRequest is used by the current player to
+// either mark the card correct or skip and move to
+// the next card.
+type ChangeCardRequest struct {
+	ChangeType string `json:"changeType"`
+}
+
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
 	Event string      `json:"event"`
@@ -81,6 +88,7 @@ type UpdatedGameEvent struct {
 	Cards                 []string `json:"cards,omitempty"`
 	NumCardsLeftInRound   int      `json:"numCardsLeftInRound"`
 	NumCardsGuessedInTurn int      `json:"numCardsGuessedInTurn"`
+	TeamScoresByRound     int      `json:"teamScoresByRound"`
 	CurrentRound          int      `json:"currentRound"`
 	CurrentPlayers        []int    `json:"currentPlayers"`
 	CurrentlyPlayingTeam  int      `json:"currentlyPlayingTeam"`

@@ -15,8 +15,7 @@ export default {
 
     START_GAME: 'start-game',
     START_TURN: 'start-turn',
-    MARK_WORD_CORRECT: 'mark-word-correct',
-    SKIP_WORD: 'skip-word',
+    CHANGE_CARD: 'change-card',
   },
   Events: {
     CREATED_ROOM: 'created-room',
@@ -24,6 +23,10 @@ export default {
     PLAYER_JOINED_ROOM: 'player-joined-room',
     UPDATED_ROOM: 'updated-room',
     UPDATED_GAME: 'updated-game',
+  },
+  CardChange: {
+    CORRECT: 'correct',
+    SKIP: 'skip',
   },
   Fishbowl: {
     MIN_PLAYERS_PER_TEAM: 1,

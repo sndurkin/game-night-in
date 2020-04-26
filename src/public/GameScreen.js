@@ -13,8 +13,7 @@ export default class GameScreen extends Component {
     };
 
     this.startTurn = this.startTurn.bind(this);
-    this.skipWord = this.skipWord.bind(this);
-    this.markWordCorrect = this.markWordCorrect.bind(this);
+    this.changeCard = this.changeCard.bind(this);
   }
 
   render() {
@@ -33,10 +32,10 @@ export default class GameScreen extends Component {
           </div>
           <div class="game-info">
             <div class="cards-left-ct">
-              <div class="cards-left-num">${game.cardsLeftInRound}</div>
+              <div class="cards-left-num">${game.numCardsLeftInRound}</div>
               <div class="cards-left-text">cards left</div>
             </div>
-            <div class="cards-guessed">+ ${game.cardsGuessedInTurn}</div>
+            <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
           </div>
           <div class="current-player">
             ${this.turnStr}
@@ -71,19 +70,13 @@ export default class GameScreen extends Component {
     }));
   }
 
-  skipWord() {
+  changeCard(changeType) {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.SKIP_WORD,
-      body: {},
-    }));
-  }
-
-  markWordCorrect() {
-    const { conn } = this.props;
-    conn.send(JSON.stringify({
-      action: Constants.Actions.MARK_WORD_CORRECT,
-      body: {},
+      action: Constants.Actions.CHANGE_CARD,
+      body: {
+        changeType: changeType,
+      },
     }));
   }
 
@@ -123,14 +116,14 @@ export default class GameScreen extends Component {
         return html`
           <button
             class="pseudo"
-            onClick=${this.skipWord}
+            onClick=${() => this.changeCard(Constants.CardChange.SKIP)}
           >
             Skip
           </button>
           <div></div>
           <button
             class="success"
-            onClick=${this.markWordCorrect}
+            onClick=${() => this.changeCard(Constants.CardChange.CORRECT)}
           >
             Correct!
           </button>
