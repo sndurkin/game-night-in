@@ -9,7 +9,7 @@ export default class GameScreen extends Component {
     super(...args);
 
     this.state = {
-
+      timeLeft: null,
     };
 
     this.startTurn = this.startTurn.bind(this);
@@ -23,30 +23,35 @@ export default class GameScreen extends Component {
     if (game.state === 'turn-start' && this.state.timeLeft !== null) {
       clearInterval(this.intervalId);
       this.setState({
-        timeLeft: null
+        timeLeft: null,
       });
-    }
-    else if (game.currentServerTime && game.timerLength && !this.state.timeLeft) {
+    } else if (game.currentServerTime && game.timerLength && !this.state.timeLeft) {
       console.log('starting timer');
-      this.startLocalTime = new Date().getTime();
-      const clientServerDiff = this.startLocalTime - game.currentServerTime;
-      const localTimerLength = game.timerLength - (clientServerDiff / 1000);
-      this.endLocalTime = this.startLocalTime + (localTimerLength * 1000);
 
       clearInterval(this.intervalId);
+
+      this.timerEndTime = game.currentServerTime + (game.timerLength * 1000);
+      const timeLeft = Math.max(0, Math.floor((this.timerEndTime - new Date().getTime()) / 1000));
+      if (timeLeft === 0) {
+        // The timer has already expired, so wait for the game-updated message
+        // from the server.
+        return;
+      }
+
       this.intervalId = setInterval(() => {
         console.log('timer interval');
-        const timeLeft = Math.max(0, Math.floor((this.endLocalTime - new Date().getTime()) / 1000));
+        const timeLeft = Math.max(0, Math.floor((this.timerEndTime - new Date().getTime()) / 1000));
         this.setState({
-          timeLeft: timeLeft || null,
+          timeLeft: timeLeft,
         });
 
         if (timeLeft === 0) {
           clearInterval(this.intervalId);
         }
-      }, 1000);
+      }, 500);
+
       this.setState({
-        timeLeft: Math.max(0, Math.floor((this.endLocalTime - new Date().getTime()) / 1000)),
+        timeLeft: timeLeft,
       });
     }
   }
