@@ -348,7 +348,7 @@ func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
 	}
 	game.currentlyPlayingTeam = getRandomNumberInRange(0, len(room.teams)-1)
 
-	h.sendUpdatedGameMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room)
 }
 
 func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
@@ -406,6 +406,7 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 		// this goroutine is executed until that happens.
 		<-timer.C
 
+		log.Printf("Game state when timer ended: %s\n", game.state)
 		if !h.validateStateTransition(game.state, "turn-start") {
 			if game.state == "turn-start" || game.state == "game-over" {
 				// Round or game finished before the player's turn timer expired,
@@ -421,10 +422,11 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 		game.state = "turn-start"
 		h.moveToNextPlayerAndTeam(room)
 
-		h.sendUpdatedGameMessages(clientMessage, room)
+		log.Printf("Sending updated game message after timer expired\n")
+		h.sendUpdatedGameMessages(room)
 	}()
 
-	h.sendUpdatedGameMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room)
 }
 
 func (h *Hub) changeCard(clientMessage *ClientMessage, req ChangeCardRequest) {
@@ -481,7 +483,7 @@ func (h *Hub) changeCard(clientMessage *ClientMessage, req ChangeCardRequest) {
 		game.cardsInRound = append(game.cardsInRound[1:], game.cardsInRound[0])
 	}
 
-	h.sendUpdatedGameMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room)
 }
 
 func (h *Hub) moveToNextPlayerAndTeam(room *GameRoom) {
@@ -534,11 +536,9 @@ func (h *Hub) sendUpdatedRoomMessages(
 		room)
 }
 
-func (h *Hub) sendUpdatedGameMessages(
-	clientMessage *ClientMessage,
-	room *GameRoom,
-) {
+func (h *Hub) sendUpdatedGameMessages(room *GameRoom) {
 	game := room.game
+	currentPlayer := h.getCurrentPlayer(room)
 
 	var currentCard string
 	var currentServerTime int64
@@ -583,8 +583,8 @@ func (h *Hub) sendUpdatedGameMessages(
 		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
 	}
 
-	h.sendOutgoingMessages(clientMessage.client, &msgToCurrentPlayer, &msgToOtherPlayers,
-		room)
+	h.sendOutgoingMessages(currentPlayer.client, &msgToCurrentPlayer,
+		&msgToOtherPlayers, room)
 }
 
 func (h *Hub) sendErrorMessage(clientMessage *ClientMessage, err string) {

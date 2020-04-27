@@ -19,20 +19,23 @@ export default class GameScreen extends Component {
   componentDidUpdate() {
     const { game } = this.props;
 
-    if (game.state === 'turn-start') {
+    console.log('component did update:', game.state, this.state.timeLeft);
+    if (game.state === 'turn-start' && this.state.timeLeft !== null) {
+      clearInterval(this.intervalId);
       this.setState({
         timeLeft: null
       });
-
-      clearInterval(this.intervalId);
     }
     else if (game.currentServerTime && game.timerLength && !this.state.timeLeft) {
+      console.log('starting timer');
       this.startLocalTime = new Date().getTime();
       const clientServerDiff = this.startLocalTime - game.currentServerTime;
       const localTimerLength = game.timerLength - (clientServerDiff / 1000);
       this.endLocalTime = this.startLocalTime + (localTimerLength * 1000);
 
+      clearInterval(this.intervalId);
       this.intervalId = setInterval(() => {
+        console.log('timer interval');
         const timeLeft = Math.max(0, Math.floor((this.endLocalTime - new Date().getTime()) / 1000));
         this.setState({
           timeLeft: timeLeft || null,
