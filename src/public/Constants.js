@@ -19,8 +19,6 @@ export default {
   },
   Events: {
     CREATED_ROOM: 'created-room',
-    JOINED_ROOM: 'joined-room',
-    PLAYER_JOINED_ROOM: 'player-joined-room',
     UPDATED_ROOM: 'updated-room',
     UPDATED_GAME: 'updated-game',
   },

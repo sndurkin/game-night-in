@@ -51,7 +51,7 @@ type Client struct {
 // ClientMessage represents a single message from a client.
 type ClientMessage struct {
 	message []byte
-	client *Client
+	client  *Client
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -77,7 +77,7 @@ func (c *Client) readPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		c.hub.message <- &ClientMessage{
-			client: c,
+			client:  c,
 			message: message,
 		}
 	}

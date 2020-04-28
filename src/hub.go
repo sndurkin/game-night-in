@@ -1,22 +1,25 @@
 // Use of this source code is governed by a BSD-style
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
+// Copyright 2013 The Gorilla ebSocket Authors. All rights reserved.
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
+	"net"
 	"encoding/json"
 	"log"
 	"math/rand"
 	"strconv"
 	"time"
+
+	"./api"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
-	// Map of connected client to PlayerInfo
-	playerClients map[*Client]*PlayerInfo
+	// Map of connected client to Player
+	playerClients map[*Client]*Player
 
 	// Map of room code to GameRoom
 	rooms map[string]*GameRoom
@@ -31,42 +34,37 @@ type Hub struct {
 	unregister chan *Client
 }
 
-// PlayerInfo holds all the data about a player.
-type PlayerInfo struct {
-	client      *Client
-	name        string
-	room        *GameRoom
-	isRoomOwner bool
-	words       []string
+// Player holds all the data about a player.
+type Player struct {
+	client                 *Client
+	name                   string
+	room                   *GameRoom
+	isRoomOwner            bool
+	words                  []string
 	numCardsGuessedByRound []int
 }
 
+// Game holds all the data about the Fishbowl game.
 type Game struct {
 	state                 string
-	turnJustStarted bool
+	turnJustStarted       bool
 	cardsInRound          []string
 	currentServerTime     int64
 	timerLength           int
-	lastCardGuessed string
+	lastCardGuessed       string
 	numCardsGuessedInTurn int
-	teamScoresByRound [][]int
+	teamScoresByRound     [][]int
 	currentRound          int   // 0, 1, 2
 	currentPlayers        []int // [ team0PlayerIdx, team1PlayerIdx ]
 	currentlyPlayingTeam  int   // 0, 1, ...
 }
 
-// GameRoom holds all the data about a particular game.
+// GameRoom holds the data about a game room.
 type GameRoom struct {
 	roomCode string
 	gameType string
-	teams    [][]*PlayerInfo
+	teams    [][]*Player
 	game     *Game
-}
-
-// PlayerClient is used to connect clients with player information.
-type PlayerClient struct {
-	client *Client
-	player Player
 }
 
 var (
@@ -86,7 +84,7 @@ var (
 
 func newHub() *Hub {
 	return &Hub{
-		playerClients: make(map[*Client]*PlayerInfo),
+		playerClients: make(map[*Client]*Player),
 		rooms:         make(map[string]*GameRoom),
 		message:       make(chan *ClientMessage),
 		register:      make(chan *Client),
@@ -98,7 +96,7 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.playerClients[client] = &PlayerInfo{
+			h.playerClients[client] = &Player{
 				client: client,
 			}
 		case client := <-h.unregister:
@@ -107,76 +105,85 @@ func (h *Hub) run() {
 				close(client.send)
 			}
 		case clientMessage := <-h.message:
-			h.processIncomingMessage(clientMessage)
+			h.handleIncomingMessage(clientMessage)
 		}
 	}
 }
 
-func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
+func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 	var body json.RawMessage
-	incomingMessage := IncomingMessage{
+	incomingMessage := api.IncomingMessage{
 		Body: &body,
 	}
 	err := json.Unmarshal(clientMessage.message, &incomingMessage)
 	if err != nil {
-		panic(err) // TODO: handle properly
+		log.Fatal(err)
+		return
 	}
 
-	switch incomingMessage.Action {
-	case "create-room":
-		var req CreateRoomRequest
+	actionType, ok := api.ActionLookup[incomingMessage.Action]
+	if !ok {
+		log.Fatalf("invalid action: %s\n", incomingMessage.Action)
+		return
+	}
+
+	switch actionType {
+	case api.ActionCreateRoom:
+		var req api.CreateRoomRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
+			log.Fatal(err)
+			return
 		}
 		h.createRoom(clientMessage, req)
-	case "join-room":
-		var req JoinRoomRequest
+	case api.ActionJoinRoom:
+		var req api.JoinRoomRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
+			log.Fatal(err)
+			return
 		}
 		h.joinRoom(clientMessage, req)
-	case "submit-words":
-		var req SubmitWordsRequest
+	case api.ActionAddTeam:
+		var req api.AddTeamRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
-		}
-		h.submitWords(clientMessage, req)
-	case "move-player":
-		var req MovePlayerRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
-		}
-		h.movePlayer(clientMessage, req)
-	case "add-team":
-		var req AddTeamRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
+			log.Fatal(err)
+			return
 		}
 		h.addTeam(clientMessage, req)
-	case "start-game":
-		var req StartGameRequest
+	case api.ActionRemoveTeam:
+		// TODO
+	case api.ActionMovePlayer:
+		var req api.MovePlayerRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
+			log.Fatal(err)
+			return
+		}
+		h.movePlayer(clientMessage, req)
+	case api.ActionSubmitWords:
+		var req api.SubmitWordsRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Fatal(err)
+			return
+		}
+		h.submitWords(clientMessage, req)
+	case api.ActionStartGame:
+		var req api.StartGameRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Fatal(err)
+			return
 		}
 		h.startGame(clientMessage, req)
-	case "start-turn":
-		var req StartTurnRequest
+	case api.ActionStartTurn:
+		var req api.StartTurnRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
+			log.Fatal(err)
+			return
 		}
 		h.startTurn(clientMessage, req)
-	case "change-card":
-		var req ChangeCardRequest
+	case api.ActionChangeCard:
+		var req api.ChangeCardRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			//log.Fatal(err)
-			panic(err)
+			log.Fatal(err)
+			return
 		}
 		h.changeCard(clientMessage, req)
 	default:
@@ -184,34 +191,38 @@ func (h *Hub) processIncomingMessage(clientMessage *ClientMessage) {
 	}
 }
 
-func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
+func (h *Hub) createRoom(
+	clientMessage *ClientMessage,
+	req api.CreateRoomRequest,
+) {
 	log.Printf("Create room request: %s\n", req.Name)
 
 	room := &GameRoom{
 		gameType: req.GameType,
 		roomCode: strconv.Itoa(getRandomNumberInRange(1000, 9999)),
-		teams:    make([][]*PlayerInfo, 2),
+		teams:    make([][]*Player, 2),
 		game: &Game{
-			state: "waiting-room",
+			state:             "waiting-room",
 			teamScoresByRound: make([][]int, 3),
 		},
 	}
 	h.rooms[room.roomCode] = room
 
-	h.playerClients[clientMessage.client].name = req.Name
-	h.playerClients[clientMessage.client].room = room
-	h.playerClients[clientMessage.client].isRoomOwner = true
-	h.playerClients[clientMessage.client].words = nil
+	player := h.playerClients[clientMessage.client]
+	player.name = req.Name
+	player.room = room
+	player.isRoomOwner = true
+	player.words = nil
 
-	room.teams[0] = make([]*PlayerInfo, 0)
-	room.teams[0] = append(room.teams[0], h.playerClients[clientMessage.client])
-	room.teams[1] = make([]*PlayerInfo, 0)
+	room.teams[0] = make([]*Player, 0)
+	room.teams[0] = append(room.teams[0], player)
+	room.teams[1] = make([]*Player, 0)
 
 	log.Printf("%+v\n", h.rooms)
 
-	var msg OutgoingMessage
+	var msg api.OutgoingMessage
 	msg.Event = "created-room"
-	msg.Body = CreatedRoomEvent{
+	msg.Body = api.CreatedRoomEvent{
 		RoomCode: room.roomCode,
 		Team:     0,
 	}
@@ -219,9 +230,8 @@ func (h *Hub) createRoom(clientMessage *ClientMessage, req CreateRoomRequest) {
 	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
 }
 
-func (h *Hub) joinRoom(clientMessage *ClientMessage, req JoinRoomRequest) {
-	log.Printf("Join room request: %s\n", req.Name)
-	log.Printf("%+v\n", h.rooms)
+func (h *Hub) joinRoom(clientMessage *ClientMessage, req api.JoinRoomRequest) {
+	log.Printf("Join room request: %s for %s\n", req.Name, req.RoomCode)
 
 	// TODO: add support for re-joining the game
 	log.Printf("remoteAddr: %s\n", clientMessage.client.conn.UnderlyingConn().RemoteAddr())
@@ -232,32 +242,39 @@ func (h *Hub) joinRoom(clientMessage *ClientMessage, req JoinRoomRequest) {
 		return
 	}
 
-	log.Printf("%+v\n", room)
-	for _, teamPlayerInfos := range room.teams {
-		for _, playerInfo := range teamPlayerInfos {
-			if playerInfo.name == req.Name {
-				// TODO: check if same IP address so we can replace the playerClient with the one
-				// that probably has lost connection?
-
-				h.sendErrorMessage(clientMessage,
-					"A player with that name is already in the room.")
-				return
-			}
+	matchedPlayer := h.getPlayerInRoom(room, req.Name)
+	if matchedPlayer != nil {
+		playerAddr := matchedPlayer.client.conn.RemoteAddr().(*net.TCPAddr)
+		reqAddr := clientMessage.client.conn.RemoteAddr().(*net.TCPAddr)
+		if reqAddr.IP.String() != playerAddr.IP.String() {
+			h.sendErrorMessage(clientMessage,
+				"A player with that name is already in the room.")
+			return
 		}
+
+		matchedPlayer.client.conn.Close()
+		matchedPlayer.client = clientMessage.client
+		h.playerClients[clientMessage.client] = matchedPlayer
+		h.sendUpdatedRoomMessages(clientMessage, room)
+		return
 	}
 
-	// Update the PlayerInfo instance with the room and chosen name.
-	h.playerClients[clientMessage.client].name = req.Name
-	h.playerClients[clientMessage.client].room = room
-	h.playerClients[clientMessage.client].isRoomOwner = false
-	h.playerClients[clientMessage.client].words = nil
+	// Update the Player instance with the room and chosen name.
+	player := h.playerClients[clientMessage.client]
+	player.name = req.Name
+	player.room = room
+	player.isRoomOwner = false
+	player.words = nil
 
-	room.teams[0] = append(room.teams[0], h.playerClients[clientMessage.client])
+	room.teams[0] = append(room.teams[0], player)
 
 	h.sendUpdatedRoomMessages(clientMessage, room)
 }
 
-func (h *Hub) submitWords(clientMessage *ClientMessage, req SubmitWordsRequest) {
+func (h *Hub) submitWords(
+	clientMessage *ClientMessage,
+	req api.SubmitWordsRequest,
+) {
 	log.Printf("Submit words request: %s\n", req.Words)
 
 	playerClient := h.playerClients[clientMessage.client]
@@ -271,11 +288,14 @@ func (h *Hub) submitWords(clientMessage *ClientMessage, req SubmitWordsRequest) 
 	h.sendUpdatedRoomMessages(clientMessage, room)
 }
 
-func (h *Hub) movePlayer(clientMessage *ClientMessage, req MovePlayerRequest) {
+func (h *Hub) movePlayer(
+	clientMessage *ClientMessage,
+	req api.MovePlayerRequest,
+) {
 	log.Printf("Move player request: %s (%d -> %d)\n", req.PlayerName,
 		req.FromTeam, req.ToTeam)
 
-	var msg OutgoingMessage
+	var msg api.OutgoingMessage
 
 	playerClient := h.playerClients[clientMessage.client]
 	room := playerClient.room
@@ -297,7 +317,10 @@ func (h *Hub) movePlayer(clientMessage *ClientMessage, req MovePlayerRequest) {
 	h.sendUpdatedRoomMessages(clientMessage, room)
 }
 
-func (h *Hub) addTeam(clientMessage *ClientMessage, req AddTeamRequest) {
+func (h *Hub) addTeam(
+	clientMessage *ClientMessage,
+	req api.AddTeamRequest,
+) {
 	log.Printf("Add team request\n")
 
 	playerClient := h.playerClients[clientMessage.client]
@@ -307,11 +330,14 @@ func (h *Hub) addTeam(clientMessage *ClientMessage, req AddTeamRequest) {
 		return
 	}
 
-	room.teams = append(room.teams, []*PlayerInfo{})
+	room.teams = append(room.teams, []*Player{})
 	h.sendUpdatedRoomMessages(clientMessage, room)
 }
 
-func (h *Hub) startGame(clientMessage *ClientMessage, req StartGameRequest) {
+func (h *Hub) startGame(
+	clientMessage *ClientMessage,
+	req api.StartGameRequest,
+) {
 	log.Printf("Start game request\n")
 
 	playerClient := h.playerClients[clientMessage.client]
@@ -355,9 +381,9 @@ func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
 	game := room.game
 
 	game.cardsInRound = []string{}
-	for _, teamPlayerInfos := range room.teams {
-		for _, playerInfo := range teamPlayerInfos {
-			game.cardsInRound = append(game.cardsInRound, playerInfo.words...)
+	for _, teamPlayers := range room.teams {
+		for _, player := range teamPlayers {
+			game.cardsInRound = append(game.cardsInRound, player.words...)
 		}
 	}
 
@@ -368,7 +394,10 @@ func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
 	})
 }
 
-func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
+func (h *Hub) startTurn(
+	clientMessage *ClientMessage,
+	req api.StartTurnRequest,
+) {
 	log.Printf("Start turn request\n")
 
 	playerClient := h.playerClients[clientMessage.client]
@@ -429,7 +458,10 @@ func (h *Hub) startTurn(clientMessage *ClientMessage, req StartTurnRequest) {
 	h.sendUpdatedGameMessages(room)
 }
 
-func (h *Hub) changeCard(clientMessage *ClientMessage, req ChangeCardRequest) {
+func (h *Hub) changeCard(
+	clientMessage *ClientMessage,
+	req api.ChangeCardRequest,
+) {
 	log.Printf("Change card request: %s\n", req.ChangeType)
 
 	playerClient := h.playerClients[clientMessage.client]
@@ -493,7 +525,7 @@ func (h *Hub) moveToNextPlayerAndTeam(room *GameRoom) {
 	game.currentlyPlayingTeam = (t + 1) % len(game.currentPlayers)
 }
 
-func (h *Hub) getCurrentPlayer(room *GameRoom) *PlayerInfo {
+func (h *Hub) getCurrentPlayer(room *GameRoom) *Player {
 	game := room.game
 	players := room.teams[game.currentlyPlayingTeam]
 	return players[game.currentPlayers[game.currentlyPlayingTeam]]
@@ -512,83 +544,22 @@ func (h *Hub) validateStateTransition(fromState, toState string) bool {
 	return true
 }
 
-func stringInSlice(arr []string, val string) bool {
-	for _, s := range arr {
-		if s == val {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (h *Hub) sendUpdatedRoomMessages(
 	clientMessage *ClientMessage,
 	room *GameRoom,
 ) {
-	var msg OutgoingMessage
+	var msg api.OutgoingMessage
 	msg.Event = "updated-room"
-	msg.Body = UpdatedRoomEvent{
-		Teams: h.convertTeamsPlayerInfosToTeams(room.teams),
+	msg.Body = api.UpdatedRoomEvent{
+		Teams: h.convertTeamsToApiTeams(room.teams),
 	}
 
 	h.sendOutgoingMessages(clientMessage.client, &msg, &msg,
 		room)
 }
 
-func (h *Hub) sendUpdatedGameMessages(room *GameRoom) {
-	game := room.game
-	currentPlayer := h.getCurrentPlayer(room)
-
-	var currentCard string
-	var currentServerTime int64
-	var timerLength int
-	if game.state == "turn-active" {
-		currentCard = game.cardsInRound[0]
-
-		if (game.turnJustStarted) {
-			currentServerTime = game.currentServerTime
-			timerLength = game.timerLength
-		}
-	}
-
-	var msgToCurrentPlayer OutgoingMessage
-	msgToCurrentPlayer.Event = "updated-game"
-	msgToCurrentPlayer.Body = UpdatedGameEvent{
-		State:                 game.state,
-		LastCardGuessed:       game.lastCardGuessed,
-		CurrentServerTime:     currentServerTime,
-		TimerLength:           timerLength,
-		CurrentCard:           currentCard,
-		NumCardsLeftInRound:   len(game.cardsInRound),
-		NumCardsGuessedInTurn: game.numCardsGuessedInTurn,
-		TeamScoresByRound:     game.teamScoresByRound,
-		CurrentRound:          game.currentRound,
-		CurrentPlayers:        game.currentPlayers,
-		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
-	}
-
-	var msgToOtherPlayers OutgoingMessage
-	msgToOtherPlayers.Event = "updated-game"
-	msgToOtherPlayers.Body = UpdatedGameEvent{
-		State:                 game.state,
-		LastCardGuessed:       game.lastCardGuessed,
-		CurrentServerTime:     currentServerTime,
-		TimerLength:           timerLength,
-		NumCardsLeftInRound:   len(game.cardsInRound),
-		NumCardsGuessedInTurn: game.numCardsGuessedInTurn,
-		TeamScoresByRound:     game.teamScoresByRound,
-		CurrentRound:          game.currentRound,
-		CurrentPlayers:        game.currentPlayers,
-		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
-	}
-
-	h.sendOutgoingMessages(currentPlayer.client, &msgToCurrentPlayer,
-		&msgToOtherPlayers, room)
-}
-
 func (h *Hub) sendErrorMessage(clientMessage *ClientMessage, err string) {
-	var msg OutgoingMessage
+	var msg api.OutgoingMessage
 	msg.Event = "error"
 	msg.Error = err
 	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
@@ -596,20 +567,20 @@ func (h *Hub) sendErrorMessage(clientMessage *ClientMessage, err string) {
 
 func (h *Hub) sendOutgoingMessages(
 	primaryClient *Client,
-	primaryMsg *OutgoingMessage,
-	secondaryMsg *OutgoingMessage,
+	primaryMsg *api.OutgoingMessage,
+	secondaryMsg *api.OutgoingMessage,
 	room *GameRoom) {
 	var err error
 	primaryOutput, err := json.Marshal(*primaryMsg)
 	if err != nil {
-		panic(err) // TODO: handle properly
+		log.Fatal(err) // TODO: handle properly
 	}
 
 	var secondaryOutput []byte
 	if secondaryMsg != nil {
 		secondaryOutput, err = json.Marshal(secondaryMsg)
 		if err != nil {
-			panic(err) // TODO: handle properly
+			log.Fatal(err) // TODO: handle properly
 		}
 	}
 
@@ -621,7 +592,8 @@ func (h *Hub) sendOutgoingMessages(
 				close(client.send)
 				delete(h.playerClients, client)
 			}
-		} else if secondaryMsg != nil && (room == nil || h.playerClients[client].room == room) {
+		} else if secondaryMsg != nil &&
+			(room == nil || h.playerClients[client].room == room) {
 			select {
 			case client.send <- secondaryOutput:
 			default:
@@ -632,11 +604,23 @@ func (h *Hub) sendOutgoingMessages(
 	}
 }
 
+func (h *Hub) getPlayerInRoom(room *GameRoom, name string) *Player {
+	for _, players := range room.teams {
+		for _, player := range players {
+			if player.name == name {
+				return player
+			}
+		}
+	}
+
+	return nil
+}
+
 func (h *Hub) removePlayerFromTeam(
 	room *GameRoom,
 	fromTeam int,
 	playerName string,
-) *PlayerInfo {
+) *Player {
 	players := room.teams[fromTeam]
 	for idx, player := range players {
 		if player.name == playerName {
@@ -652,24 +636,24 @@ func (h *Hub) removePlayerFromTeam(
 	return nil
 }
 
-func (h *Hub) convertPlayerInfosToPlayers(playerInfos []*PlayerInfo) []Player {
-	players := make([]Player, 0, len(playerInfos))
-	for _, playerInfo := range playerInfos {
-		players = append(players, Player{
-			Name:        playerInfo.name,
-			IsRoomOwner: playerInfo.isRoomOwner,
-			WordsSubmitted:    len(playerInfo.words) > 0,
+func (h *Hub) convertPlayersToApiPlayers(players []*Player) []api.Player {
+	apiPlayers := make([]api.Player, 0, len(players))
+	for _, player := range players {
+		apiPlayers = append(apiPlayers, api.Player{
+			Name:           player.name,
+			IsRoomOwner:    player.isRoomOwner,
+			WordsSubmitted: len(player.words) > 0,
 		})
 	}
-	return players
+	return apiPlayers
 }
 
-func (h *Hub) convertTeamsPlayerInfosToTeams(teamsPlayerInfos [][]*PlayerInfo) [][]Player {
-	teams := make([][]Player, 0, len(teamsPlayerInfos))
-	for _, teamPlayerInfos := range teamsPlayerInfos {
-		teams = append(teams, h.convertPlayerInfosToPlayers(teamPlayerInfos))
+func (h *Hub) convertTeamsToApiTeams(teams [][]*Player) [][]api.Player {
+	apiTeams := make([][]api.Player, 0, len(teams))
+	for _, players := range teams {
+		apiTeams = append(apiTeams, h.convertPlayersToApiPlayers(players))
 	}
-	return teams
+	return apiTeams
 }
 
 func getRandomNumberInRange(min, max int) int {
