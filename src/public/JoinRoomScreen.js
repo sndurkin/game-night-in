@@ -56,13 +56,31 @@ export default class JoinRoomScreen extends Component {
       return;
     }
 
-    this.props.transitionToScreen(Constants.Screens.ROOM);
-    this.props.updateStoreData({
+    // TODO: pull room owner info from server, because it's possible
+    // for a user to create a room, get disconnected and try to rejoin
+    // the room.
+    const sharedProps = {
       name: this.state.name,
       isRoomOwner: false,
       roomCode: this.state.roomCode,
-      teams: data.body.teams,
-    });
+    };
+
+    switch (data.event) {
+      case Constants.Events.UPDATED_ROOM:
+        this.props.updateStoreData({
+          ...sharedProps,
+          teams: data.body.teams
+        });
+        this.props.transitionToScreen(Constants.Screens.ROOM);
+        break;
+      case Constants.Events.UPDATED_GAME:
+        this.props.updateStoreData({
+          ...sharedProps,
+          game: data.body
+        });
+        this.props.transitionToScreen(Constants.Screens.GAME);
+        break;
+    }
   }
 
   onNameChange(e) {

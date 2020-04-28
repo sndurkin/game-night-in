@@ -199,7 +199,7 @@ func (h *Hub) createRoom(
 
 	room := &GameRoom{
 		gameType: req.GameType,
-		roomCode: strconv.Itoa(getRandomNumberInRange(1000, 9999)),
+		roomCode: h.generateUniqueRoomCode(),
 		teams:    make([][]*Player, 2),
 		game: &Game{
 			state:             "waiting-room",
@@ -228,6 +228,23 @@ func (h *Hub) createRoom(
 	}
 
 	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
+}
+
+func (h *Hub) generateUniqueRoomCode() string {
+	for ;; {
+		newRoomCode := strconv.Itoa(getRandomNumberInRange(1000, 9999))
+		foundDuplicate := false
+		for roomCode := range h.rooms {
+			if newRoomCode == roomCode {
+				foundDuplicate = true
+				break
+			}
+		}
+
+		if !foundDuplicate {
+			return newRoomCode
+		}
+	}
 }
 
 func (h *Hub) joinRoom(clientMessage *ClientMessage, req api.JoinRoomRequest) {
