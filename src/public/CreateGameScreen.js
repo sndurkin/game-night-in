@@ -3,7 +3,7 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import Constants from './Constants.js';
 
 
-export default class CreateRoomScreen extends Component {
+export default class CreateGameScreen extends Component {
 
   constructor(...args) {
     super(...args);
@@ -16,7 +16,7 @@ export default class CreateRoomScreen extends Component {
 
     this.onSelectGameType = this.onSelectGameType.bind(this);
     this.onNameChange = this.onNameChange.bind(this);
-    this.createRoom = this.createRoom.bind(this);
+    this.createGame = this.createGame.bind(this);
   }
 
   render() {
@@ -27,22 +27,26 @@ export default class CreateRoomScreen extends Component {
         ${error && html`
           <span class="label error">${error}</span>
         `}
-        <label class="select">
-          Game type
-          <select value=${gameType} onChange=${this.onSelectGameType}>
-            <option value="fishbowl">Fishbowl</option>
-          </select>
-        </label>
-        <label>
-          Username
-          <input
-            type="text"
-            maxlength="20"
-            value="${name}"
-            placeholder="Enter your name"
-            onInput=${this.onNameChange} />
-        </label>
-        <button class="lone" onClick=${this.createRoom}>Create</button>
+        <form onSubmit=${this.createGame}>
+          <label class="select">
+            Game type
+            <select value=${gameType} onChange=${this.onSelectGameType}>
+              <option value="fishbowl">Fishbowl</option>
+            </select>
+          </label>
+          <label>
+            Name
+            <input
+              name="name"
+              autocomplete="given-name"
+              type="text"
+              maxlength="20"
+              value="${name}"
+              placeholder="Enter your name"
+              onInput=${this.onNameChange} />
+          </label>
+        </form>
+        <button type="submit" class="lone">Create</button>
       </div>
     `;
   }
@@ -72,7 +76,9 @@ export default class CreateRoomScreen extends Component {
     this.setState({ name: e.target.value });
   }
 
-  createRoom() {
+  createGame(e) {
+    e.preventDefault();
+
     const { conn } = this.props;
     const { gameType, name } = this.state;
     if (name.length === 0) {
@@ -81,7 +87,7 @@ export default class CreateRoomScreen extends Component {
     }
 
     conn.send(JSON.stringify({
-      action: Constants.Actions.CREATE_ROOM,
+      action: Constants.Actions.CREATE_GAME,
       body: {
         gameType: gameType,
         name: name,

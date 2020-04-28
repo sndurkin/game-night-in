@@ -8,26 +8,26 @@ export default class HomeScreen extends Component {
   constructor(...args) {
     super(...args);
 
-    this.openCreateRoom = this.openCreateRoom.bind(this);
-    this.openJoinRoom = this.openJoinRoom.bind(this);
+    this.openCreateGame = this.openCreateGame.bind(this);
+    this.openJoinGame = this.openJoinGame.bind(this);
   }
 
   render() {
     return html`
       <div class="screen">
-        <button class="lone" onClick=${this.openCreateRoom}>Create new game</button>
+        <button class="lone" onClick=${this.openCreateGame}>Create new game</button>
         <div class="center-horiz">or</div>
-        <button class="lone" onClick=${this.openJoinRoom}>Join existing game</button>
+        <button class="lone" onClick=${this.openJoinGame}>Join existing game</button>
       </div>
     `;
   }
 
-  openCreateRoom() {
-    this.props.transitionToScreen(Constants.Screens.CREATE_ROOM);
+  openCreateGame() {
+    this.props.transitionToScreen(Constants.Screens.CREATE_GAME);
   }
 
-  openJoinRoom() {
-    this.props.transitionToScreen(Constants.Screens.JOIN_ROOM);
+  openJoinGame() {
+    this.props.transitionToScreen(Constants.Screens.JOIN_GAME);
   }
 
 }

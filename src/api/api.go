@@ -17,14 +17,14 @@ type IncomingMessage struct {
 	Body   interface{} `json:"body"`
 }
 
-// CreateRoomRequest is used by clients to create a new game room.
-type CreateRoomRequest struct {
+// CreateGameRequest is used by clients to create a new game room.
+type CreateGameRequest struct {
 	GameType string `json:"gameType"`
 	Name     string `json:"name"`
 }
 
-// JoinRoomRequest is used by clients to officially join a game room.
-type JoinRoomRequest struct {
+// JoinGameRequest is used by clients to officially join a game room.
+type JoinGameRequest struct {
 	RoomCode string `json:"roomCode"`
 	Name     string `json:"name"`
 }
@@ -67,9 +67,9 @@ type OutgoingMessage struct {
 	Body  interface{} `json:"body"`
 }
 
-// CreatedRoomEvent is an event that is sent to a player
+// CreatedGameEvent is an event that is sent to a player
 // when they create a new game room.
-type CreatedRoomEvent struct {
+type CreatedGameEvent struct {
 	RoomCode string `json:"roomCode"`
 	Team     int    `json:"team"`
 }
@@ -101,8 +101,8 @@ type UpdatedGameEvent struct {
 const (
 	// General game actions
 	ActionInvalid    ActionT = 0
-	ActionCreateRoom ActionT = 1
-	ActionJoinRoom   ActionT = 2
+	ActionCreateGame ActionT = 1
+	ActionJoinGame   ActionT = 2
 	ActionAddTeam    ActionT = 3
 	ActionRemoveTeam ActionT = 4
 	ActionMovePlayer ActionT = 5
@@ -114,7 +114,7 @@ const (
 	ActionChangeCard  ActionT = 31
 
 	EventInvalid     EventT = 0
-	EventCreatedRoom EventT = 1
+	EventCreatedGame EventT = 1
 	EventUpdatedRoom EventT = 2
 	EventUpdatedGame EventT = 3
 )
@@ -123,8 +123,8 @@ var (
 	// Action holds a map of action types to protocol string.
 	Action = map[ActionT]string{
 		ActionInvalid:     "invalid action",
-		ActionCreateRoom:  "create-room",
-		ActionJoinRoom:    "join-room",
+		ActionCreateGame:  "create-game",
+		ActionJoinGame:    "join-game",
 		ActionAddTeam:     "add-team",
 		ActionRemoveTeam:  "remove-team",
 		ActionMovePlayer:  "move-player",
@@ -137,7 +137,7 @@ var (
 	// Event holds a map of event types to protocol string.
 	Event = map[EventT]string{
 		EventInvalid:     "invalid event",
-		EventCreatedRoom: "created-room",
+		EventCreatedGame: "created-game",
 		EventUpdatedRoom: "updated-room",
 		EventUpdatedGame: "updated-game",
 	}
@@ -145,8 +145,8 @@ var (
 	// ActionLookup holds a reverse map of Action.
 	ActionLookup = map[string]ActionT{
 		"invalid action": ActionInvalid,
-		"create-room":    ActionCreateRoom,
-		"join-room":      ActionJoinRoom,
+		"create-game":    ActionCreateGame,
+		"join-game":      ActionJoinGame,
 		"add-team":       ActionAddTeam,
 		"remove-team":    ActionRemoveTeam,
 		"move-player":    ActionMovePlayer,

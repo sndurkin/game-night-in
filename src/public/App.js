@@ -2,8 +2,8 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 
 import ScreenWrapper from './ScreenWrapper.js';
 import HomeScreen from './HomeScreen.js';
-import CreateRoomScreen from './CreateRoomScreen.js';
-import JoinRoomScreen from './JoinRoomScreen.js';
+import CreateGameScreen from './CreateGameScreen.js';
+import JoinGameScreen from './JoinGameScreen.js';
 import RoomScreen from './RoomScreen.js';
 import GameScreen from './GameScreen.js';
 import Constants from './Constants.js';
@@ -37,10 +37,10 @@ class App extends Component {
     switch (this.state.screen) {
       case Constants.Screens.HOME:
         return this.homeScreen;
-      case Constants.Screens.CREATE_ROOM:
-        return this.createRoomScreen;
-      case Constants.Screens.JOIN_ROOM:
-        return this.joinRoomScreen;
+      case Constants.Screens.CREATE_GAME:
+        return this.createGameScreen;
+      case Constants.Screens.JOIN_GAME:
+        return this.joinGameScreen;
       case Constants.Screens.ROOM:
         return this.roomScreen;
       case Constants.Screens.GAME:
@@ -68,20 +68,20 @@ class App extends Component {
             <${HomeScreen} ref=${r => this.homeScreen = r} ...${sharedProps} />
           <//>
         `}
-        ${screen === Constants.Screens.CREATE_ROOM && html`
+        ${screen === Constants.Screens.CREATE_GAME && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
             ...${sharedProps}
           >
-            <${CreateRoomScreen} ref=${r => this.createRoomScreen = r} ...${sharedProps} />
+            <${CreateGameScreen} ref=${r => this.createGameScreen = r} ...${sharedProps} />
           <//>
         `}
-        ${screen === Constants.Screens.JOIN_ROOM && html`
+        ${screen === Constants.Screens.JOIN_GAME && html`
           <${ScreenWrapper}
             onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
             ...${sharedProps}
           >
-            <${JoinRoomScreen} ref=${r => this.joinRoomScreen = r} ...${sharedProps} />
+            <${JoinGameScreen} ref=${r => this.joinGameScreen = r} ...${sharedProps} />
           <//>
         `}
         ${screen === Constants.Screens.ROOM && html`

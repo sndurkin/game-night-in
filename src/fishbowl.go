@@ -6,6 +6,7 @@ import (
 	"./api"
 )
 
+// This function must be called with the mutex held.
 func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) {
 	game := room.game
 
@@ -13,7 +14,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 		var msg api.OutgoingMessage
 		msg.Event = "updated-room"
 		msg.Body = api.UpdatedRoomEvent{
-			Teams: h.convertTeamsToApiTeams(room.teams),
+			Teams: convertTeamsToAPITeams(room.teams),
 		}
 
 		if justJoinedClient != nil {
@@ -74,13 +75,13 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 		log.Printf("Player %s just rejoined, sending updated-game event\n", currentPlayer.name)
 		if currentPlayer.client == justJoinedClient {
 			updatedGameEvent := msgToCurrentPlayer.Body.(api.UpdatedGameEvent)
-			updatedGameEvent.Teams = h.convertTeamsToApiTeams(room.teams)
+			updatedGameEvent.Teams = convertTeamsToAPITeams(room.teams)
 			msgToCurrentPlayer.Body = updatedGameEvent
 			h.sendOutgoingMessages(justJoinedClient, &msgToCurrentPlayer,
 				nil, room)
 		} else {
 			updatedGameEvent := msgToOtherPlayers.Body.(api.UpdatedGameEvent)
-			updatedGameEvent.Teams = h.convertTeamsToApiTeams(room.teams)
+			updatedGameEvent.Teams = convertTeamsToAPITeams(room.teams)
 			msgToOtherPlayers.Body = updatedGameEvent
 			h.sendOutgoingMessages(justJoinedClient, &msgToOtherPlayers,
 				nil, room)

@@ -3,20 +3,20 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import Constants from './Constants.js';
 
 
-export default class JoinRoomScreen extends Component {
+export default class JoinGameScreen extends Component {
 
   constructor(...args) {
     super(...args);
 
     this.state = {
-      name: Math.random().toString(36).substring(2, 8),
-      roomCode: '6374',
+      //name: Math.random().toString(36).substring(2, 8),
+      //roomCode: '6374',
       error: '',
     };
 
     this.onNameChange = this.onNameChange.bind(this);
     this.onRoomCodeChange = this.onRoomCodeChange.bind(this);
-    this.joinRoom = this.joinRoom.bind(this);
+    this.joinGame = this.joinGame.bind(this);
   }
 
   render() {
@@ -27,25 +27,31 @@ export default class JoinRoomScreen extends Component {
         ${error && html`
           <span class="label error">${error}</span>
         `}
-        <label>
-          Room code
-          <input
-            type="text"
-            maxlength="4"
-            value="${roomCode}"
-            placeholder="Enter the room invite code"
-            onInput=${this.onRoomCodeChange} />
-        </label>
-        <label>
-          Name
-          <input
-            type="text"
-            maxlength="20"
-            value="${name}"
-            placeholder="Enter your name"
-            onInput=${this.onNameChange} />
-        </label>
-        <button class="lone" onClick=${this.joinRoom}>Join</button>
+        <form onSubmit=${this.joinGame}>
+          <label>
+            Room code
+            <input
+              name="room-code"
+              autocomplete="room-code"
+              type="text"
+              maxlength="4"
+              value=${roomCode}
+              placeholder="Enter the room invite code"
+              onInput=${this.onRoomCodeChange} />
+          </label>
+          <label>
+            Name
+            <input
+              name="name"
+              autocomplete="given-name"
+              type="text"
+              maxlength="20"
+              value=${name}
+              placeholder="Enter your name"
+              onInput=${this.onNameChange} />
+          </label>
+          <button type="submit" class="lone">Join</button>
+        </form>
       </div>
     `;
   }
@@ -57,7 +63,7 @@ export default class JoinRoomScreen extends Component {
     }
 
     // TODO: pull room owner info from server, because it's possible
-    // for a user to create a room, get disconnected and try to rejoin
+    // for a user to create a game, get disconnected and try to rejoin
     // the room.
     const sharedProps = {
       name: this.state.name,
@@ -92,7 +98,9 @@ export default class JoinRoomScreen extends Component {
     this.setState({ roomCode: e.target.value });
   }
 
-  joinRoom() {
+  joinGame(e) {
+    e.preventDefault();
+
     const { conn } = this.props;
     const { roomCode, name } = this.state;
 
@@ -107,7 +115,7 @@ export default class JoinRoomScreen extends Component {
     }
 
     conn.send(JSON.stringify({
-      action: Constants.Actions.JOIN_ROOM,
+      action: Constants.Actions.JOIN_GAME,
       body: {
         roomCode: roomCode,
         name: name,

@@ -1,14 +1,14 @@
 export default {
   Screens: {
     HOME: 'home',
-    CREATE_ROOM: 'create-room',
-    JOIN_ROOM: 'join-room',
+    CREATE_GAME: 'create-game',
+    JOIN_GAME: 'join-game',
     ROOM: 'room',
     GAME: 'game',
   },
   Actions: {
-    CREATE_ROOM: 'create-room',
-    JOIN_ROOM: 'join-room',
+    CREATE_GAME: 'create-game',
+    JOIN_GAME: 'join-game',
     SUBMIT_WORDS: 'submit-words',
     ADD_TEAM: 'add-team',
     MOVE_PLAYER: 'move-player',
@@ -18,7 +18,7 @@ export default {
     CHANGE_CARD: 'change-card',
   },
   Events: {
-    CREATED_ROOM: 'created-room',
+    CREATED_GAME: 'created-game',
     UPDATED_ROOM: 'updated-room',
     UPDATED_GAME: 'updated-game',
   },
