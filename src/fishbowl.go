@@ -31,7 +31,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 	if game.state == "turn-active" {
 		currentCard = game.cardsInRound[0]
 
-		if game.turnJustStarted {
+		if game.turnJustStarted || justJoinedClient != nil {
 			currentServerTime = game.currentServerTime
 			timerLength = game.timerLength
 		}
@@ -68,6 +68,16 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 		CurrentlyPlayingTeam:  game.currentlyPlayingTeam,
 	}
 
-	h.sendOutgoingMessages(currentPlayer.client, &msgToCurrentPlayer,
-		&msgToOtherPlayers, room)
+	if justJoinedClient != nil {
+		if currentPlayer.client == justJoinedClient {
+			h.sendOutgoingMessages(justJoinedClient, &msgToCurrentPlayer,
+				nil, room)
+		} else {
+			h.sendOutgoingMessages(justJoinedClient, &msgToOtherPlayers,
+				nil, room)
+		}
+	} else {
+		h.sendOutgoingMessages(currentPlayer.client, &msgToCurrentPlayer,
+			&msgToOtherPlayers, room)
+	}
 }

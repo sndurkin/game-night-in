@@ -272,7 +272,7 @@ func (h *Hub) joinRoom(clientMessage *ClientMessage, req api.JoinRoomRequest) {
 		matchedPlayer.client.conn.Close()
 		matchedPlayer.client = clientMessage.client
 		h.playerClients[clientMessage.client] = matchedPlayer
-		h.sendUpdatedRoomMessages(clientMessage, room)
+		h.sendUpdatedGameMessages(room, clientMessage.client)
 		return
 	}
 
@@ -285,7 +285,7 @@ func (h *Hub) joinRoom(clientMessage *ClientMessage, req api.JoinRoomRequest) {
 
 	room.teams[0] = append(room.teams[0], player)
 
-	h.sendUpdatedRoomMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) submitWords(
@@ -302,7 +302,7 @@ func (h *Hub) submitWords(
 	}
 
 	playerClient.words = req.Words
-	h.sendUpdatedRoomMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) movePlayer(
@@ -331,7 +331,7 @@ func (h *Hub) movePlayer(
 	player := h.removePlayerFromTeam(room, req.FromTeam, req.PlayerName)
 	room.teams[req.ToTeam] = append(room.teams[req.ToTeam], player)
 
-	h.sendUpdatedRoomMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) addTeam(
@@ -348,7 +348,7 @@ func (h *Hub) addTeam(
 	}
 
 	room.teams = append(room.teams, []*Player{})
-	h.sendUpdatedRoomMessages(clientMessage, room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) startGame(
@@ -391,7 +391,7 @@ func (h *Hub) startGame(
 	}
 	game.currentlyPlayingTeam = getRandomNumberInRange(0, len(room.teams)-1)
 
-	h.sendUpdatedGameMessages(room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
@@ -469,10 +469,10 @@ func (h *Hub) startTurn(
 		h.moveToNextPlayerAndTeam(room)
 
 		log.Printf("Sending updated game message after timer expired\n")
-		h.sendUpdatedGameMessages(room)
+		h.sendUpdatedGameMessages(room, nil)
 	}()
 
-	h.sendUpdatedGameMessages(room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) changeCard(
@@ -532,7 +532,7 @@ func (h *Hub) changeCard(
 		game.cardsInRound = append(game.cardsInRound[1:], game.cardsInRound[0])
 	}
 
-	h.sendUpdatedGameMessages(room)
+	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) moveToNextPlayerAndTeam(room *GameRoom) {
