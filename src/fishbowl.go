@@ -1,9 +1,10 @@
 package main
 
 import (
+	"log"
+
 	"./api"
 )
-
 
 func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) {
 	game := room.game
@@ -16,6 +17,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 		}
 
 		if justJoinedClient != nil {
+			log.Printf("Player just rejoined, sending updated-room event\n")
 			h.sendOutgoingMessages(justJoinedClient, &msg, nil, room)
 		} else {
 			h.sendOutgoingMessages(nil, &msg, &msg, room)
@@ -69,10 +71,17 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 	}
 
 	if justJoinedClient != nil {
+		log.Printf("Player %s just rejoined, sending updated-game event\n", currentPlayer.name)
 		if currentPlayer.client == justJoinedClient {
+			updatedGameEvent := msgToCurrentPlayer.Body.(api.UpdatedGameEvent)
+			updatedGameEvent.Teams = h.convertTeamsToApiTeams(room.teams)
+			msgToCurrentPlayer.Body = updatedGameEvent
 			h.sendOutgoingMessages(justJoinedClient, &msgToCurrentPlayer,
 				nil, room)
 		} else {
+			updatedGameEvent := msgToOtherPlayers.Body.(api.UpdatedGameEvent)
+			updatedGameEvent.Teams = h.convertTeamsToApiTeams(room.teams)
+			msgToOtherPlayers.Body = updatedGameEvent
 			h.sendOutgoingMessages(justJoinedClient, &msgToOtherPlayers,
 				nil, room)
 		}

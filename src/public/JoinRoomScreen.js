@@ -69,14 +69,15 @@ export default class JoinRoomScreen extends Component {
       case Constants.Events.UPDATED_ROOM:
         this.props.updateStoreData({
           ...sharedProps,
-          teams: data.body.teams
+          teams: data.body.teams,
         });
         this.props.transitionToScreen(Constants.Screens.ROOM);
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({
           ...sharedProps,
-          game: data.body
+          teams: data.body.teams,
+          game: data.body,
         });
         this.props.transitionToScreen(Constants.Screens.GAME);
         break;

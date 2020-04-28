@@ -5,10 +5,10 @@
 package main
 
 import (
-	"net"
 	"encoding/json"
 	"log"
 	"math/rand"
+	"net"
 	"strconv"
 	"time"
 
@@ -231,7 +231,7 @@ func (h *Hub) createRoom(
 }
 
 func (h *Hub) generateUniqueRoomCode() string {
-	for ;; {
+	for {
 		newRoomCode := strconv.Itoa(getRandomNumberInRange(1000, 9999))
 		foundDuplicate := false
 		for roomCode := range h.rooms {
@@ -269,7 +269,9 @@ func (h *Hub) joinRoom(clientMessage *ClientMessage, req api.JoinRoomRequest) {
 			return
 		}
 
+		log.Printf("A player with the provided name and IP is already in the room/game\n")
 		matchedPlayer.client.conn.Close()
+		delete(h.playerClients, matchedPlayer.client)
 		matchedPlayer.client = clientMessage.client
 		h.playerClients[clientMessage.client] = matchedPlayer
 		h.sendUpdatedGameMessages(room, clientMessage.client)

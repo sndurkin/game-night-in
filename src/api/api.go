@@ -84,17 +84,18 @@ type UpdatedRoomEvent struct {
 // UpdatedGameEvent is an event that is sent to all players
 // playing a game whenever a change has been made to its state.
 type UpdatedGameEvent struct {
-	State                 string  `json:"state"`
-	CurrentServerTime     int64   `json:"currentServerTime,omitempty"`
-	TimerLength           int     `json:"timerLength,omitempty"`
-	LastCardGuessed       string  `json:"lastCardGuessed"`
-	CurrentCard           string  `json:"currentCard,omitempty"`
-	NumCardsLeftInRound   int     `json:"numCardsLeftInRound"`
-	NumCardsGuessedInTurn int     `json:"numCardsGuessedInTurn"`
-	TeamScoresByRound     [][]int `json:"teamScoresByRound"`
-	CurrentRound          int     `json:"currentRound"`
-	CurrentPlayers        []int   `json:"currentPlayers"`
-	CurrentlyPlayingTeam  int     `json:"currentlyPlayingTeam"`
+	State                 string     `json:"state"`
+	CurrentServerTime     int64      `json:"currentServerTime,omitempty"`
+	TimerLength           int        `json:"timerLength,omitempty"`
+	LastCardGuessed       string     `json:"lastCardGuessed"`
+	CurrentCard           string     `json:"currentCard,omitempty"`
+	NumCardsLeftInRound   int        `json:"numCardsLeftInRound"`
+	NumCardsGuessedInTurn int        `json:"numCardsGuessedInTurn"`
+	TeamScoresByRound     [][]int    `json:"teamScoresByRound"`
+	CurrentRound          int        `json:"currentRound"`
+	CurrentPlayers        []int      `json:"currentPlayers"`
+	CurrentlyPlayingTeam  int        `json:"currentlyPlayingTeam"`
+	Teams                 [][]Player `json:"teams,omitempty"`
 }
 
 const (

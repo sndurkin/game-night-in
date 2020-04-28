@@ -16,10 +16,18 @@ export default class GameScreen extends Component {
     this.changeCard = this.changeCard.bind(this);
   }
 
+  componentDidMount() {
+    this.handleGameStateChange();
+  }
+
   componentDidUpdate() {
+    this.handleGameStateChange();
+  }
+
+  handleGameStateChange() {
     const { game } = this.props;
 
-    console.log('component did update:', game.state, this.state.timeLeft);
+    console.log('component did mount/update:', game.state, this.state.timeLeft);
     if (game.state === 'turn-start' && this.state.timeLeft !== null) {
       clearInterval(this.intervalId);
       this.setState({
