@@ -10,7 +10,7 @@ export default class CreateRoomScreen extends Component {
 
     this.state = {
       gameType: 'fishbowl',
-      name: Math.random().toString(36).substring(5),
+      name: Math.random().toString(36).substring(2, 8),
       error: '',
     };
 

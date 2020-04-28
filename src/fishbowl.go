@@ -5,8 +5,24 @@ import (
 )
 
 
-func (h *Hub) sendUpdatedGameMessages(room *GameRoom) {
+func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) {
 	game := room.game
+
+	if game.state == "waiting-room" {
+		var msg api.OutgoingMessage
+		msg.Event = "updated-room"
+		msg.Body = api.UpdatedRoomEvent{
+			Teams: h.convertTeamsToApiTeams(room.teams),
+		}
+
+		if justJoinedClient != nil {
+			h.sendOutgoingMessages(justJoinedClient, &msg, nil, room)
+		} else {
+			h.sendOutgoingMessages(nil, &msg, &msg, room)
+		}
+		return
+	}
+
 	currentPlayer := h.getCurrentPlayer(room)
 
 	var currentCard string

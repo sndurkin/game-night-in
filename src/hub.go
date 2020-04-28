@@ -561,20 +561,6 @@ func (h *Hub) validateStateTransition(fromState, toState string) bool {
 	return true
 }
 
-func (h *Hub) sendUpdatedRoomMessages(
-	clientMessage *ClientMessage,
-	room *GameRoom,
-) {
-	var msg api.OutgoingMessage
-	msg.Event = "updated-room"
-	msg.Body = api.UpdatedRoomEvent{
-		Teams: h.convertTeamsToApiTeams(room.teams),
-	}
-
-	h.sendOutgoingMessages(clientMessage.client, &msg, &msg,
-		room)
-}
-
 func (h *Hub) sendErrorMessage(clientMessage *ClientMessage, err string) {
 	var msg api.OutgoingMessage
 	msg.Event = "error"
