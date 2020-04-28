@@ -9,7 +9,7 @@ export default class JoinRoomScreen extends Component {
     super(...args);
 
     this.state = {
-      name: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+      name: Math.random().toString(36).substring(2, 8),
       roomCode: '6374',
       error: '',
     };
