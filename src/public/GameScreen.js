@@ -76,7 +76,7 @@ export default class GameScreen extends Component {
 
         <div class="game-area">
           <div class="game-card">
-            ${game.currentCard}
+            ${this.card}
           </div>
           ${game.state === 'turn-start' || game.state === 'turn-active' ? html`
             <div class="time-left">${timeLeft}</div>
@@ -154,6 +154,18 @@ export default class GameScreen extends Component {
     }
 
     return this.currentPlayer.name + "'s turn";
+  }
+
+  get card() {
+    const { game } = this.props;
+
+    if (this.isCurrentPlayer) {
+      return game.currentCard;
+    }
+
+    return html`
+      <span style="color: #777">${game.lastCardGuessed}</span>
+    `;
   }
 
   get buttonBar() {
