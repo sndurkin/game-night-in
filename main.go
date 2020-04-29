@@ -5,14 +5,10 @@
 package main
 
 import (
-	"flag"
+	"os"
 	"fmt"
 	"log"
 	"net/http"
-)
-
-var (
-	addr = flag.String("addr", ":3000", "http service address")
 )
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +45,13 @@ func logRoute(f http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	flag.Parse()
 	hub := newHub()
 	go hub.run()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
 
 	http.HandleFunc("/", logRoute(serveHome))
 
@@ -62,8 +62,9 @@ func main() {
 		serveWs(hub, w, r)
 	}))
 
-	log.Println("Server listening...")
-	err := http.ListenAndServe(*addr, nil)
+	addr := fmt.Sprintf(":%s", port)
+	log.Printf("Server listening on %s\n", addr)
+	err := http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
