@@ -1,5 +1,6 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
+import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
 
@@ -23,36 +24,41 @@ export default class JoinGameScreen extends Component {
     const { name, roomCode, error } = this.state;
 
     return html`
-      <div class="screen">
-        ${error && html`
-          <span class="label error">${error}</span>
-        `}
-        <form onSubmit=${this.joinGame}>
-          <label>
-            Room code
-            <input
-              name="room-code"
-              autocomplete="room-code"
-              type="text"
-              maxlength="4"
-              value=${roomCode}
-              placeholder="Enter the room invite code"
-              onInput=${this.onRoomCodeChange} />
-          </label>
-          <label>
-            Name
-            <input
-              name="name"
-              autocomplete="given-name"
-              type="text"
-              maxlength="20"
-              value=${name}
-              placeholder="Enter your name"
-              onInput=${this.onNameChange} />
-          </label>
-          <button type="submit" class="lone">Join</button>
-        </form>
-      </div>
+      <${ScreenWrapper}
+        onBack=${() => this.props.transitionToScreen(Constants.Screens.HOME)}
+        ...${this.props}
+      >
+        <div class="screen">
+          ${error && html`
+            <span class="label error">${error}</span>
+          `}
+          <form onSubmit=${this.joinGame}>
+            <label>
+              Room code
+              <input
+                name="room-code"
+                autocomplete="room-code"
+                type="text"
+                maxlength="4"
+                value=${roomCode}
+                placeholder="Enter the room invite code"
+                onInput=${this.onRoomCodeChange} />
+            </label>
+            <label>
+              Name
+              <input
+                name="name"
+                autocomplete="given-name"
+                type="text"
+                maxlength="20"
+                value=${name}
+                placeholder="Enter your name"
+                onInput=${this.onNameChange} />
+            </label>
+            <button type="submit" class="lone">Join</button>
+          </form>
+        </div>
+      <//>
     `;
   }
 

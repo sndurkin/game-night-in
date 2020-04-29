@@ -1,5 +1,6 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
+import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
 
@@ -23,31 +24,36 @@ export default class CreateGameScreen extends Component {
     const { gameType, name, error } = this.state;
 
     return html`
-      <div class="screen">
-        ${error && html`
-          <span class="label error">${error}</span>
-        `}
-        <form onSubmit=${this.createGame}>
-          <label class="select">
-            Game type
-            <select value=${gameType} onChange=${this.onSelectGameType}>
-              <option value="fishbowl">Fishbowl</option>
-            </select>
-          </label>
-          <label>
-            Name
-            <input
-              name="name"
-              autocomplete="given-name"
-              type="text"
-              maxlength="20"
-              value=${name}
-              placeholder="Enter your name"
-              onInput=${this.onNameChange} />
-          </label>
-          <button type="submit" class="lone">Create</button>
-        </form>
-      </div>
+      <${ScreenWrapper}
+        onBack=${() => this.props.transitionToScreen(Constants.Screens.HOME)}
+        ...${this.props}
+      >
+        <div class="screen">
+          ${error && html`
+            <span class="label error">${error}</span>
+          `}
+          <form onSubmit=${this.createGame}>
+            <label class="select">
+              Game type
+              <select value=${gameType} onChange=${this.onSelectGameType}>
+                <option value="fishbowl">Fishbowl</option>
+              </select>
+            </label>
+            <label>
+              Name
+              <input
+                name="name"
+                autocomplete="given-name"
+                type="text"
+                maxlength="20"
+                value=${name}
+                placeholder="Enter your name"
+                onInput=${this.onNameChange} />
+            </label>
+            <button type="submit" class="lone">Create</button>
+          </form>
+        </div>
+      <//>
     `;
   }
 

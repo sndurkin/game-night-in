@@ -1,7 +1,28 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
+import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
+const WORDS = [
+  'apple', 'jump', 'brick', 'red', 'simple', 'potatoes', 'sack', 'lump', 'fowl', 'biscuit', 'cheese',
+  'pout', 'leaf', 'tree', 'cow', 'phone', 'call', 'table', 'sawing', 'drilling', 'work', 'yellow',
+  'turns', 'wet', 'lucky', 'temperate', 'climate', 'cattle', 'string', 'bell', 'cut', 'scissors',
+  'time', 'long', 'afterlife', 'west', 'lol', 'points', 'game', 'score', 'computer', 'keyboard',
+  'typist', 'astronomy', 'astrology', 'stars', 'castle', 'bill', 'dry', 'toast', 'less', 'more',
+  'capital', 'whine', 'wine', 'plate', 'card', 'word', 'letter', 'like', 'love', 'worship', 'war',
+  'famine', 'dust', 'bowl', 'iron', 'oreo', 'touchless', 'run', 'brevity', 'high', 'low', 'mumps',
+  'orange', 'orangutan', 'organ', 'piano', 'violin', 'keytar', 'tar', 'key', 'lock', 'hole', 'munch',
+  'rain', 'clouds', 'sky', 'thistle', 'vine', 'grow', 'plant', 'tend', 'garden', 'butterfly',
+];
+function getWords(num) {
+  const words = [];
+  for (let i = 0; i < num; i++) {
+    const idx = Math.floor(Math.random() * WORDS.length);
+    words.push(WORDS[idx]);
+    WORDS.splice(idx, 1);
+  }
+  return words;
+}
 
 export default class RoomScreen extends Component {
 
@@ -12,9 +33,7 @@ export default class RoomScreen extends Component {
       error: '',
 
       wordBeingEntered: '',
-      words: [
-        '1', '2', '3', '4', '5',
-      ],
+      words: getWords(5),
 
       showMovePlayerModal: false,
       playerToMove: null,
@@ -47,12 +66,17 @@ export default class RoomScreen extends Component {
     const { error } = this.state;
 
     return html`
-      <div class="screen">
-        ${error && html`
-          <span class="label error">${error}</span>
-        `}
-        ${!this.player.wordsSubmitted ? this.renderSubmitWords() : this.renderTeams()}
-      </div>
+      <${ScreenWrapper}
+        onBack=${() => this.props.transitionToScreen(Constants.Screens.HOME)}
+        ...${this.props}
+      >
+        <div class="screen">
+          ${error && html`
+            <span class="label error">${error}</span>
+          `}
+          ${!this.player.wordsSubmitted ? this.renderSubmitWords() : this.renderTeams()}
+        </div>
+      <//>
     `;
   }
 
@@ -167,8 +191,8 @@ export default class RoomScreen extends Component {
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
                 onClick=${() => {
-        teamIdxToMoveFrom !== idx && this.movePlayer(idx);
-      }}
+    teamIdxToMoveFrom !== idx && this.movePlayer(idx);
+  }}
               >
                 Team ${idx + 1}
               </span>

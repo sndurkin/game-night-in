@@ -1,6 +1,5 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
-import ScreenWrapper from './ScreenWrapper.js';
 import HomeScreen from './HomeScreen.js';
 import CreateGameScreen from './CreateGameScreen.js';
 import JoinGameScreen from './JoinGameScreen.js';
@@ -64,38 +63,19 @@ class App extends Component {
     return html`
       <div class="app">
         ${screen === Constants.Screens.HOME && html`
-          <${ScreenWrapper} ...${sharedProps}>
-            <${HomeScreen} ref=${r => this.homeScreen = r} ...${sharedProps} />
-          <//>
+          <${HomeScreen} ref=${r => this.homeScreen = r} ...${sharedProps} />
         `}
         ${screen === Constants.Screens.CREATE_GAME && html`
-          <${ScreenWrapper}
-            onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
-            ...${sharedProps}
-          >
-            <${CreateGameScreen} ref=${r => this.createGameScreen = r} ...${sharedProps} />
-          <//>
+          <${CreateGameScreen} ref=${r => this.createGameScreen = r} ...${sharedProps} />
         `}
         ${screen === Constants.Screens.JOIN_GAME && html`
-          <${ScreenWrapper}
-            onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
-            ...${sharedProps}
-          >
-            <${JoinGameScreen} ref=${r => this.joinGameScreen = r} ...${sharedProps} />
-          <//>
+          <${JoinGameScreen} ref=${r => this.joinGameScreen = r} ...${sharedProps} />
         `}
         ${screen === Constants.Screens.ROOM && html`
-          <${ScreenWrapper}
-            onBack=${() => this.transitionToScreen(Constants.Screens.HOME)}
-            ...${sharedProps}
-          >
-            <${RoomScreen} ref=${r => this.roomScreen = r} ...${sharedProps} />
-          <//>
+          <${RoomScreen} ref=${r => this.roomScreen = r} ...${sharedProps} />
         `}
         ${screen === Constants.Screens.GAME && html`
-          <${ScreenWrapper} ...${sharedProps}>
-            <${GameScreen} ref=${r => this.gameScreen = r} ...${sharedProps} />
-          <//>
+          <${GameScreen} ref=${r => this.gameScreen = r} ...${sharedProps} />
         `}
       </div>
     `;

@@ -64,9 +64,10 @@ button.lone {
 }
 
 .time-left {
+  font-size: 1.3em;
   padding: 0.2em 0.4em;
-  color: #555;
-  border-color: #555;
+  color: #cc3000;
+  border-color: #cc3000;
   border-style: dashed;
   border-width: 0 0.1em 0.1em 0;
 }
@@ -87,6 +88,11 @@ button.lone {
   flex-direction: column;
   min-height: 0;
   overflow: auto;
+}
+@media (orientation: landscape) {
+  .screen {
+    padding-top: 0;
+  }
 }
 
 label {

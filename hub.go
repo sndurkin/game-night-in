@@ -70,6 +70,10 @@ type GameRoom struct {
 	game     *Game
 }
 
+const (
+	gameTimerLength = 4000
+)
+
 var (
 	validStateTransitions = map[string][]string{
 		"waiting-room": {
@@ -480,7 +484,7 @@ func (h *Hub) startTurn(
 
 	game.numCardsGuessedInTurn = 0
 	game.lastCardGuessed = ""
-	game.timerLength = 11
+	game.timerLength = gameTimerLength + 1
 	game.currentServerTime = time.Now().UnixNano() / 1000000
 	timer := time.NewTimer(time.Second * time.Duration(game.timerLength))
 

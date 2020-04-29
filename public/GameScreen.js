@@ -1,5 +1,6 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
+import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
 
@@ -69,35 +70,34 @@ export default class GameScreen extends Component {
     const { error, timeLeft } = this.state;
 
     return html`
-      <div class="screen">
-        ${error && html`
-          <span class="label error">${error}</span>
-        `}
+      <${ScreenWrapper} ...${this.props} timeLeft=${timeLeft}>
+        <div class="screen">
+          ${error && html`
+            <span class="label error">${error}</span>
+          `}
 
-        <div class="game-area">
-          <div class="game-card">
-            ${this.card}
-          </div>
-          ${game.state === 'turn-start' || game.state === 'turn-active' ? html`
-            <div class="time-left">${timeLeft}</div>
-          ` : null}
-          <div class="game-info">
-            <div class="cards-left-ct">
-              <div class="cards-left-num">${game.numCardsLeftInRound}</div>
-              <div class="cards-left-text">cards left</div>
+          <div class="game-area">
+            <div class="game-card">
+              ${this.card}
             </div>
-            <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
+            <div class="game-info">
+              <div class="cards-left-ct">
+                <div class="cards-left-num">${game.numCardsLeftInRound}</div>
+                <div class="cards-left-text">cards left</div>
+              </div>
+              <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
+            </div>
+            <div class="current-player">
+              ${this.turnStr}
+            </div>
           </div>
-          <div class="current-player">
-            ${this.turnStr}
-          </div>
+          ${this.isCurrentPlayer && html`
+            <div class="button-bar game-actions">
+              ${this.buttonBar}
+            </div>
+          `}
         </div>
-        ${this.isCurrentPlayer && html`
-          <div class="button-bar game-actions">
-            ${this.buttonBar}
-          </div>
-        `}
-      </div>
+      <//>
     `;
   }
 
@@ -164,7 +164,7 @@ export default class GameScreen extends Component {
     }
 
     return html`
-      <span style="color: #777">${game.lastCardGuessed}</span>
+      <span style="color: #777">(${game.lastCardGuessed})</span>
     `;
   }
 
