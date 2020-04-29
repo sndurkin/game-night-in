@@ -11,6 +11,10 @@ import (
 	"net/http"
 )
 
+const (
+	defaultPort = "3000"
+)
+
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
 	if r.URL.Path != "/" {
@@ -50,7 +54,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000"
+		port = defaultPort
 	}
 
 	http.HandleFunc("/", logRoute(serveHome))
