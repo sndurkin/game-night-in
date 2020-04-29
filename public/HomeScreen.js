@@ -15,6 +15,7 @@ export default class HomeScreen extends Component {
   render() {
     return html`
       <div class="screen">
+        <div class="logo"></div>
         <button class="lone" onClick=${this.openCreateGame}>Create new game</button>
         <div class="center-horiz">or</div>
         <button class="lone" onClick=${this.openJoinGame}>Join existing game</button>

@@ -42,6 +42,27 @@ button.lone {
   align-items: center;
 }
 
+.logo {
+  background: url(img/logo-512.png) no-repeat;
+  background-size: cover;
+  animation: rotation 2s infinite ease;
+  width: 5em;
+  height: 5em;
+  margin: 0 auto 2em auto;
+}
+
+@keyframes rotation {
+  0% {
+    transform: rotate(40deg);
+  }
+  75% {
+    transform: rotate(-40deg);
+  }
+  100% {
+    transform: rotate(220deg);
+  }
+}
+
 .time-left {
   padding: 0.2em 0.4em;
   color: #555;

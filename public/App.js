@@ -114,7 +114,7 @@ class App extends Component {
   }
 }
 
-window.onload = function () {
+window.onload = function() {
   if (!window['WebSocket']) {
     document.open();
     document.write('<b>Your browser does not support WebSockets.</b>');
@@ -122,8 +122,9 @@ window.onload = function () {
     return;
   }
 
-  conn = new WebSocket('wss://' + document.location.host + '/ws');
-  conn.onclose = function (e) {
+  const protocol = document.location.protocol === 'https:' ? 'wss' : 'ws';
+  conn = new WebSocket(protocol + '://' + document.location.host + '/ws');
+  conn.onclose = function(e) {
     while (document.body.firstChild) {
       document.body.removeChild(document.body.firstChild);
     }
