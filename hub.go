@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"./api"
+	"github.com/sndurkin/gaming-remotely/api"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the

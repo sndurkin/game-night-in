@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./api"
+	"github.com/sndurkin/gaming-remotely/api"
 )
 
 func convertPlayersToAPIPlayers(players []*Player) []api.Player {

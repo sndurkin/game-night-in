@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"./api"
+	"github.com/sndurkin/gaming-remotely/api"
 )
 
 // This function must be called with the mutex held.
