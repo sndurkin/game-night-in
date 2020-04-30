@@ -5,6 +5,7 @@ export default {
     JOIN_GAME: 'join-game',
     ROOM: 'room',
     GAME: 'game',
+    GAME_OVER: 'game-over',
   },
   Actions: {
     CREATE_GAME: 'create-game',
@@ -16,6 +17,12 @@ export default {
     START_GAME: 'start-game',
     START_TURN: 'start-turn',
     CHANGE_CARD: 'change-card',
+  },
+  States: {
+    WAITING_ROOM: 'waiting-room',
+    TURN_START: 'turn-start',
+    TURN_ACTIVE: 'turn-active',
+    GAME_OVER: 'game-over',
   },
   Events: {
     CREATED_GAME: 'created-game',
@@ -62,5 +69,5 @@ export default {
     '#663300',    // Brown
     '#ffffff',    // White
     '#000000',    // Black
-  ]
+  ],
 };

@@ -5,6 +5,7 @@ import CreateGameScreen from './CreateGameScreen.js';
 import JoinGameScreen from './JoinGameScreen.js';
 import RoomScreen from './RoomScreen.js';
 import GameScreen from './GameScreen.js';
+import GameOverScreen from './GameOverScreen.js';
 import Constants from './Constants.js';
 
 
@@ -44,6 +45,8 @@ class App extends Component {
         return this.roomScreen;
       case Constants.Screens.GAME:
         return this.gameScreen;
+      case Constants.Screens.GAME_OVER:
+        return this.gameOverScreen;
     }
 
     return null;
@@ -76,6 +79,9 @@ class App extends Component {
         `}
         ${screen === Constants.Screens.GAME && html`
           <${GameScreen} ref=${r => this.gameScreen = r} ...${sharedProps} />
+        `}
+        ${screen === Constants.Screens.GAME_OVER && html`
+          <${GameOverScreen} ref=${r => this.gameOverScreen = r} ...${sharedProps} />
         `}
       </div>
     `;

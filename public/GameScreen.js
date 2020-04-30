@@ -1,7 +1,6 @@
-import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
+import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
-import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 
@@ -29,14 +28,14 @@ export default class GameScreen extends Component {
   handleGameStateChange() {
     const { game } = this.props;
 
-    console.log('component did mount/update:', game.state, this.state.timeLeft);
-    if (game.state === 'turn-start' && this.state.timeLeft !== null) {
+    // console.log('component did mount/update:', game.state, this.state.timeLeft);
+    if (game.state === Constants.States.TURN_START && this.state.timeLeft !== null) {
       clearInterval(this.intervalId);
       this.setState({
         timeLeft: null,
       });
     } else if (game.currentServerTime && game.timerLength && !this.state.timeLeft) {
-      console.log('starting timer');
+      // console.log('starting timer');
 
       clearInterval(this.intervalId);
 
@@ -49,7 +48,7 @@ export default class GameScreen extends Component {
       }
 
       this.intervalId = setInterval(() => {
-        console.log('timer interval');
+        // console.log('timer interval');
         const timeLeft = Math.max(0, Math.floor((this.timerEndTime - new Date().getTime()) / 1000));
         this.setState({
           timeLeft: timeLeft,
@@ -68,7 +67,7 @@ export default class GameScreen extends Component {
 
   render() {
     const { game } = this.props;
-    const { error, timeLeft } = this.state;
+    const { timeLeft } = this.state;
 
     return html`
       <${ScreenWrapper} ...${this.props} header=${this.header}>
@@ -77,17 +76,13 @@ export default class GameScreen extends Component {
             <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
           </div>
           <div class="game-area">
-            <div class="game-card">
-              ${this.card}
-            </div>
+            ${this.gameAreaContents}
             <div class="game-info-bar">
               <div class="cards-left-ct">
                 <div class="cards-left-num">${game.numCardsLeftInRound}</div>
                 <div class="cards-left-text">cards left</div>
               </div>
-              ${(game.state === 'turn-start' || game.state === 'turn-active') && timeLeft !== null ? html`
-                <div class="time-left">${this.timeLeftStr}</div>
-              ` : null}
+              ${this.timeLeftComponent}
             </div>
             <div class="current-player">
               ${this.turnStr}
@@ -110,7 +105,12 @@ export default class GameScreen extends Component {
 
     switch (data.event) {
       case Constants.Events.UPDATED_GAME:
-        this.props.updateStoreData({ game: data.body });
+        const game = data.body;
+        if (game.state === Constants.States.GAME_OVER) {
+          this.props.transitionToScreen(Constants.Screens.GAME_OVER);
+        } else {
+          this.props.updateStoreData({ game: game });
+        }
         break;
     }
   }
@@ -179,15 +179,35 @@ export default class GameScreen extends Component {
     return this.currentPlayer.name + "'s turn";
   }
 
-  get card() {
+  get gameAreaContents() {
     const { game } = this.props;
 
-    if (this.isCurrentPlayer) {
-      return game.currentCard;
+    if (game.state === Constants.States.TURN_START && game.numCardsLeftInRound === game.totalNumCards) {
+      return html`
+        <div class="round-start">
+          <div class="round-start-title">
+            Round ${game.currentRound + 1}
+          </div>
+          <div class="round-start-subtitle">
+            ${Constants.Fishbowl.Rounds[game.currentRound].name}
+          </div>
+          <div class="round-start-desc">
+            ${Constants.Fishbowl.Rounds[game.currentRound].long}
+          </div>
+        </div>
+      `;
+    }
+
+    if (game.state === Constants.States.TURN_ACTIVE && this.isCurrentPlayer) {
+      return html`
+        <div class="game-card">${game.currentCard}</div>
+      `;
     }
 
     return html`
-      <span style="color: #777">${game.lastCardGuessed}</span>
+      <div class="game-card">
+        <span style="color: #777">${game.lastCardGuessed}</span>
+      </div>
     `;
   }
 
@@ -219,11 +239,26 @@ export default class GameScreen extends Component {
     return null;
   }
 
-  get timeLeftStr() {
+  get timeLeftComponent() {
+    const { game } = this.props;
     const { timeLeft } = this.state;
-    const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-    const seconds = (timeLeft % 60).toString().padStart(2, '0');
-    return `${minutes}:${seconds}`;
+
+    if (timeLeft === null) {
+      return null;
+    }
+
+    switch (game.state) {
+      case Constants.States.TURN_START:
+      case Constants.States.TURN_ACTIVE:
+        const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        const seconds = (timeLeft % 60).toString().padStart(2, '0');
+
+        return html`
+          <div class="time-left">${minutes}:${seconds}</div>
+        `;
+    }
+
+    return null;
   }
 
 }

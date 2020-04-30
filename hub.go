@@ -55,8 +55,10 @@ type Game struct {
 	currentServerTime     int64
 	timerLength           int
 	lastCardGuessed       string
+	totalNumCards         int
 	numCardsGuessedInTurn int
 	teamScoresByRound     [][]int
+	winningTeam           int
 	currentRound          int   // 0, 1, 2
 	currentPlayers        []int // [ team0PlayerIdx, team1PlayerIdx ]
 	currentlyPlayingTeam  int   // 0, 1, ...
@@ -71,7 +73,7 @@ type GameRoom struct {
 }
 
 const (
-	gameTimerLength = 4000
+	gameTimerLength = 4
 )
 
 var (
@@ -443,6 +445,7 @@ func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
 			game.cardsInRound = append(game.cardsInRound, player.words...)
 		}
 	}
+	game.totalNumCards = len(game.cardsInRound)
 
 	// TODO: rand.Seed(time.Now().UnixNano())
 	arr := game.cardsInRound
@@ -573,7 +576,24 @@ func (h *Hub) changeCard(
 				game.currentlyPlayingTeam = getRandomNumberInRange(0,
 					len(room.teams)-1)
 			} else {
-				// TODO: Game over
+				game.state = "game-over"
+
+				totalScores := make([]int, len(room.teams))
+				for _, scoresByTeam := range game.teamScoresByRound {
+					for team, score := range scoresByTeam {
+						totalScores[team] += score
+					}
+				}
+
+				var teamWithMax, max int
+				for team, totalScore := range totalScores {
+					if totalScore > max {
+						max = totalScore
+						teamWithMax = team
+					}
+				}
+
+				game.winningTeam = teamWithMax
 			}
 		}
 	} else {
