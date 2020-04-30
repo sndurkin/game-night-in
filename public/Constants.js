@@ -28,10 +28,39 @@ export default {
   },
   Fishbowl: {
     MIN_PLAYERS_PER_TEAM: 1,
-    Rounds: [
-      'Describe',
-      'Single word',
-      'Charades',
-    ],
+    MAX_TEAMS: 10,
+    Rounds: [{
+      name: 'Describe',
+      short: 'Describe this:',
+      long: [
+        'Use anything to describe the word or phrase to your team',
+        'except for spelling hints, rhymes, and gestures.',
+      ].join(' '),
+    }, {
+      name: 'Single word',
+      short: 'Describe this in 1 word:',
+      long: [
+        'You can only use a single word to describe the word or phrase',
+        'to your team.',
+      ].join(' '),
+    }, {
+      name: 'Charades',
+      short: 'Act this out:',
+      long: [
+        'You can only act out clues for the word or phrase, no talking!',
+      ].join(' '),
+    }],
   },
+  TeamColors: [
+    '#cc0000',    // Red
+    '#0000cc',    // Blue
+    '#ffff00',    // Yellow
+    '#00cc00',    // Green
+    '#cc6000',    // Orange
+    '#cc00cc',    // Purple
+    '#cccccc',    // Gray
+    '#663300',    // Brown
+    '#ffffff',    // White
+    '#000000',    // Black
+  ]
 };

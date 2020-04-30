@@ -64,12 +64,13 @@ button.lone {
 }
 
 .time-left {
+  margin-left: auto;
   font-size: 1.3em;
   padding: 0.2em 0.4em;
   color: #cc3000;
   border-color: #cc3000;
   border-style: dashed;
-  border-width: 0 0.1em 0.1em 0;
+  border-width: 0.1em 0 0 0.1em;
 }
 
 .room-code {
@@ -138,10 +139,13 @@ label {
 
 .team-title {
   font-weight: bold;
+  padding: 0.25em 2em 0.25em 1.75em;
+  border-left: 0.25em solid #000;
 }
 
 .team-table {
   width: 100%;
+  padding: 0.5em 0.5em 1em 0;
 }
 
 .empty-list {
@@ -153,8 +157,8 @@ label {
 }
 
 .player-ready {
-  width: 1em;
-  margin-right: 0.5em;
+  width: 2em;
+  text-align: center;
 }
 
 .player-name {
@@ -164,6 +168,18 @@ label {
   overflow: hidden;
   white-space: nowrap;
   padding-right: 0.5em;
+}
+
+.team-score {
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 2em;
+  border-bottom-width: 0.25em;
+  border-bottom-style: solid;
 }
 
 .game-area {
@@ -182,7 +198,7 @@ label {
   font-size: 3em;
 }
 
-.game-info {
+.game-info-bar {
   display: flex;
   align-items: center;
 }
@@ -207,9 +223,10 @@ label {
   line-height: 3em;
   font-weight: bold;
   border-top: 1px solid #999;
-  margin: .5em 0;
+  margin: .25em 0;
+  padding: .25em 0;
 }
 
 .game-actions {
-  border-top: 1px solid #999;
+
 }

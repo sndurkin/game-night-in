@@ -1,6 +1,7 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
+import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 const WORDS = [
@@ -138,7 +139,9 @@ export default class RoomScreen extends Component {
       <div class="teams">
         ${teams.map((team, idx) => html`
           <div class="team">
-            <div class="team-title">Team ${idx + 1}</div>
+            <div class="team-title" style=${Utils.teamStyle(idx)}>
+              Team ${idx + 1}
+            </div>
             <div class="team-table">
               ${(team || []).length === 0 ? html`
                 <div class="empty-list">No players yet!</div>
@@ -165,7 +168,12 @@ export default class RoomScreen extends Component {
       </div>
       ${isRoomOwner && html`
         <div class="button-bar">
-          <button onClick=${this.addTeam}>Add team</button>
+          <button
+            onClick=${this.addTeam}
+            disabled=${teams.length >= Constants.Fishbowl.MAX_TEAMS}
+          >
+            Add team
+          </button>
           <div></div>
           <button
             disabled=${!canStartGame}
@@ -191,8 +199,8 @@ export default class RoomScreen extends Component {
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
                 onClick=${() => {
-    teamIdxToMoveFrom !== idx && this.movePlayer(idx);
-  }}
+        teamIdxToMoveFrom !== idx && this.movePlayer(idx);
+      }}
               >
                 Team ${idx + 1}
               </span>

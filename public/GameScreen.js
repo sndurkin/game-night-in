@@ -1,6 +1,7 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
+import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 
@@ -70,22 +71,23 @@ export default class GameScreen extends Component {
     const { error, timeLeft } = this.state;
 
     return html`
-      <${ScreenWrapper} ...${this.props} timeLeft=${timeLeft}>
+      <${ScreenWrapper} ...${this.props} header=${this.header}>
         <div class="screen">
-          ${error && html`
-            <span class="label error">${error}</span>
-          `}
-
+          <div class="game-info-bar">
+            <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
+          </div>
           <div class="game-area">
             <div class="game-card">
               ${this.card}
             </div>
-            <div class="game-info">
+            <div class="game-info-bar">
               <div class="cards-left-ct">
                 <div class="cards-left-num">${game.numCardsLeftInRound}</div>
                 <div class="cards-left-text">cards left</div>
               </div>
-              <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
+              ${(game.state === 'turn-start' || game.state === 'turn-active') && timeLeft !== null ? html`
+                <div class="time-left">${this.timeLeftStr}</div>
+              ` : null}
             </div>
             <div class="current-player">
               ${this.turnStr}
@@ -131,6 +133,27 @@ export default class GameScreen extends Component {
     }));
   }
 
+  get header() {
+    const { teams, game } = this.props;
+
+    return teams.map((_, teamIdx) => {
+      const result = [];
+      if (teamIdx > 0) {
+        result.push(html`<div style="width: 0.25em"></div>`);
+      }
+
+      const teamColor = Constants.TeamColors[teamIdx];
+
+      result.push(html`
+        <div class="team-score" style="border-bottom-color: ${teamColor}">
+          ${game.teamScoresByRound[game.currentRound][teamIdx]}
+        </div>
+      `);
+
+      return result;
+    });
+  }
+
   get isCurrentPlayer() {
     const { name } = this.props;
     return this.currentPlayer.name === name;
@@ -164,7 +187,7 @@ export default class GameScreen extends Component {
     }
 
     return html`
-      <span style="color: #777">(${game.lastCardGuessed})</span>
+      <span style="color: #777">${game.lastCardGuessed}</span>
     `;
   }
 
@@ -194,6 +217,13 @@ export default class GameScreen extends Component {
     }
 
     return null;
+  }
+
+  get timeLeftStr() {
+    const { timeLeft } = this.state;
+    const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+    const seconds = (timeLeft % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
   }
 
 }
