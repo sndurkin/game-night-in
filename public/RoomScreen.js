@@ -130,13 +130,6 @@ export default class RoomScreen extends Component {
     const { showMovePlayerModal, teamIdxToMoveFrom } = this.state;
     const teams = this.props.teams || [];
 
-    // To start the game, each team needs at least 2 people
-    // and everyone needs to have their words submitted.
-    const canStartGame = teams.every(players => {
-      return players.length >= Constants.Fishbowl.MIN_PLAYERS_PER_TEAM
-        && players.every(p => p.wordsSubmitted);
-    });
-
     return html`
       <div class="teams">
         ${teams.map((team, idx) => html`
@@ -168,7 +161,7 @@ export default class RoomScreen extends Component {
           </div>
         `)}
       </div>
-      ${isRoomOwner && html`
+      ${isRoomOwner ? html`
         <div class="button-bar">
           <button
             onClick=${this.addTeam}
@@ -178,12 +171,12 @@ export default class RoomScreen extends Component {
           </button>
           <div></div>
           <button
-            disabled=${!canStartGame}
+            disabled=${!this.canStartGame}
             onClick=${this.startGame}>
             Start game
           </button>
         </div>
-      `}
+      ` : this.waitingMessage}
       <div class="modal">
         <input
           id="move-player-modal"
@@ -200,9 +193,7 @@ export default class RoomScreen extends Component {
               <span
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
-                onClick=${() => {
-        teamIdxToMoveFrom !== idx && this.movePlayer(idx);
-      }}
+                onClick=${() => { teamIdxToMoveFrom !== idx && this.movePlayer(idx); }}
               >
                 Team ${idx + 1}
               </span>
@@ -314,6 +305,58 @@ export default class RoomScreen extends Component {
       action: Constants.Actions.START_GAME,
       body: {},
     }));
+  }
+
+  get waitingMessage() {
+    if (this.canStartGame || this.playersWithoutSubmittedWords.length) {
+      let waitingStr;
+      if (this.canStartGame) {
+        waitingStr = `Waiting for ${this.roomOwner.name} to start the game`;
+      } else if (this.playersWithoutSubmittedWords.length > 1) {
+        waitingStr = `Waiting for multiple players to submit their words`;
+      } else {
+        waitingStr = `Waiting for ${this.playersWithoutSubmittedWords[0].name} to submit their words`;
+      }
+
+      return html`
+        <div class="room-toolbar">
+          ${waitingStr}
+        </div>
+      `;
+    }
+
+    return null;
+  }
+
+  get playersWithoutSubmittedWords() {
+    const { teams } = this.props;
+    let arr = [];
+    for (let players of teams) {
+      arr = arr.concat(players.filter(p => !p.wordsSubmitted));
+    }
+    return arr;
+  }
+
+  // To start the game, each team needs at least the minimum number of players
+  // and everyone needs to have their words submitted.
+  get canStartGame() {
+    const { teams } = this.props;
+    return teams.every(players => {
+      return players.length >= Constants.Fishbowl.MIN_PLAYERS_PER_TEAM
+        && players.every(p => p.wordsSubmitted);
+    });
+  }
+
+  get roomOwner() {
+    const { teams } = this.props;
+    for (let players of teams) {
+      const player = players.find(p => p.isRoomOwner);
+      if (player) {
+        return player;
+      }
+    }
+
+    return null;
   }
 
   get player() {

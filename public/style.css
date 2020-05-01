@@ -118,6 +118,10 @@ label {
   width: 0.5em;
 }
 
+.room-toolbar {
+  text-align: center;
+}
+
 .word-row {
   display: flex;
   align-items: center;

@@ -239,7 +239,7 @@ func (h *Hub) createGame(
 	player.name = req.Name
 	player.room = room
 	player.isRoomOwner = true
-	player.words = nil
+	player.words = []string{}
 
 	room.teams[0] = make([]*Player, 0)
 	room.teams[0] = append(room.teams[0], player)
@@ -326,7 +326,7 @@ func (h *Hub) joinGame(clientMessage *ClientMessage, req api.JoinGameRequest) {
 	player.name = req.Name
 	player.room = room
 	player.isRoomOwner = false
-	player.words = nil
+	player.words = []string{}
 
 	room.teams[0] = append(room.teams[0], player)
 
@@ -662,7 +662,7 @@ func (h *Hub) rematch(
 
 	for _, teamPlayers := range room.teams {
 		for _, player := range teamPlayers {
-			player.words = nil
+			player.words = []string{}
 		}
 	}
 
