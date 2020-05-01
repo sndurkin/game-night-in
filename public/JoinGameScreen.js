@@ -78,6 +78,16 @@ export default class JoinGameScreen extends Component {
       roomCode: this.state.roomCode,
     };
 
+    if (data.body.teams) {
+      for (let players of data.body.teams) {
+        const player = players.find(p => p.name === this.state.name);
+        if (player) {
+          sharedProps.isRoomOwner = player.isRoomOwner;
+          break;
+        }
+      }
+    }
+
     switch (data.event) {
       case Constants.Events.UPDATED_ROOM:
         this.props.updateStoreData({

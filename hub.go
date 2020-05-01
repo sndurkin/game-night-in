@@ -39,11 +39,11 @@ type Hub struct {
 
 // Player holds all the data about a player.
 type Player struct {
-	client                 *Client
-	name                   string
-	room                   *GameRoom
-	isRoomOwner            bool
-	words                  []string
+	client      *Client
+	name        string
+	room        *GameRoom
+	isRoomOwner bool
+	words       []string
 }
 
 // Game holds all the data about the Fishbowl game.
@@ -662,6 +662,7 @@ func (h *Hub) rematch(
 		}
 	}
 
+	log.Println("Sending out updated game messages for rematch")
 	h.sendUpdatedGameMessages(room, nil)
 }
 

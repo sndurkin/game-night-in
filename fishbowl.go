@@ -17,6 +17,8 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 			Teams: convertTeamsToAPITeams(room.teams),
 		}
 
+		log.Printf("Sending out updated room messages\n")
+
 		if justJoinedClient != nil {
 			log.Printf("Player just rejoined, sending updated-room event\n")
 			h.sendOutgoingMessages(justJoinedClient, &msg, nil, room)
