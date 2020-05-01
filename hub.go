@@ -300,9 +300,11 @@ func (h *Hub) joinGame(clientMessage *ClientMessage, req api.JoinGameRequest) {
 		}
 
 		log.Printf("A player with the provided name and IP is already in the room/game\n")
-		matchedPlayer.client.conn.Close()
-		delete(h.playerClients, matchedPlayer.client)
-		matchedPlayer.client = clientMessage.client
+		if matchedPlayer.client != clientMessage.client {
+			matchedPlayer.client.conn.Close()
+			delete(h.playerClients, matchedPlayer.client)
+			matchedPlayer.client = clientMessage.client
+		}
 		h.playerClients[clientMessage.client] = matchedPlayer
 		h.sendUpdatedGameMessages(room, clientMessage.client)
 		return
