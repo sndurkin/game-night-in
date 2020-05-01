@@ -24,6 +24,10 @@ export default class HomeScreen extends Component {
     `;
   }
 
+  handleMessage() {
+    // Ignore, player may still be in a room
+  }
+
   openCreateGame() {
     this.props.transitionToScreen(Constants.Screens.CREATE_GAME);
   }
