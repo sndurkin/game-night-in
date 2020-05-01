@@ -34,7 +34,7 @@ export default class RoomScreen extends Component {
       error: '',
 
       wordBeingEntered: '',
-      words: Utils.localhost ? getWords(5) : [],
+      words: document.location.protocol === 'https:' ? [] : getWords(5),
 
       showMovePlayerModal: false,
       playerToMove: null,

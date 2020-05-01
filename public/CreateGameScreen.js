@@ -1,7 +1,6 @@
-import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
+import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
-import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 
@@ -12,7 +11,7 @@ export default class CreateGameScreen extends Component {
 
     this.state = {
       gameType: 'fishbowl',
-      name: Utils.localhost ? Math.random().toString(36).substring(2, 8) : '',
+      name: localStorage.getItem(Constants.LocalStorage.PLAYER_NAME) || '',
       error: '',
     };
 
@@ -64,15 +63,21 @@ export default class CreateGameScreen extends Component {
       return;
     }
 
-    this.props.transitionToScreen(Constants.Screens.ROOM);
-    this.props.updateStoreData({
-      name: this.state.name,
-      isRoomOwner: true,
-      roomCode: data.body.roomCode,
-      teams: [
-        [{ name: this.state.name, isRoomOwner: true }],
-      ],
-    });
+    switch (data.event) {
+      case Constants.Events.CREATED_GAME:
+        localStorage.setItem(Constants.LocalStorage.ROOM_CODE, data.body.roomCode);
+
+        this.props.transitionToScreen(Constants.Screens.ROOM);
+        this.props.updateStoreData({
+          name: this.state.name,
+          isRoomOwner: true,
+          roomCode: data.body.roomCode,
+          teams: [
+            [{ name: this.state.name, isRoomOwner: true }],
+          ],
+        });
+        break;
+    }
   }
 
   onSelectGameType(e) {
@@ -88,16 +93,19 @@ export default class CreateGameScreen extends Component {
 
     const { conn } = this.props;
     const { gameType, name } = this.state;
-    if (name.length === 0) {
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) {
       this.setState({ error: 'Please enter a name first.' });
       return;
     }
+
+    localStorage.setItem(Constants.LocalStorage.PLAYER_NAME, trimmedName);
 
     conn.send(JSON.stringify({
       action: Constants.Actions.CREATE_GAME,
       body: {
         gameType: gameType,
-        name: name,
+        name: trimmedName,
       },
     }));
   }

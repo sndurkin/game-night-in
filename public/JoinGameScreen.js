@@ -1,7 +1,6 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
-import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 
@@ -11,8 +10,8 @@ export default class JoinGameScreen extends Component {
     super(...args);
 
     this.state = {
-      name: Utils.localhost ? Math.random().toString(36).substring(2, 8) : '',
-      roomCode: Utils.localhost ? '6374' : '',
+      name: localStorage.getItem(Constants.LocalStorage.PLAYER_NAME) || '',
+      roomCode: localStorage.getItem(Constants.LocalStorage.ROOM_CODE) || '',
       error: '',
     };
 
@@ -69,15 +68,14 @@ export default class JoinGameScreen extends Component {
       return;
     }
 
-    // TODO: pull room owner info from server, because it's possible
-    // for a user to create a game, get disconnected and try to rejoin
-    // the room.
     const sharedProps = {
       name: this.state.name,
       isRoomOwner: false,
       roomCode: this.state.roomCode,
     };
 
+    // Set isRoomOwner in case the current client is the room owner
+    // and rejoining a game.
     if (data.body.teams) {
       for (let players of data.body.teams) {
         const player = players.find(p => p.name === this.state.name);
@@ -126,16 +124,20 @@ export default class JoinGameScreen extends Component {
       return;
     }
 
-    if (name.length === 0) {
+    const trimmedName = name.trim();
+    if (trimmedName.length === 0) {
       this.setState({ error: 'Please enter a name to join.' });
       return;
     }
+
+    localStorage.setItem(Constants.LocalStorage.PLAYER_NAME, trimmedName);
+    localStorage.setItem(Constants.LocalStorage.ROOM_CODE, roomCode);
 
     conn.send(JSON.stringify({
       action: Constants.Actions.JOIN_GAME,
       body: {
         roomCode: roomCode,
-        name: name,
+        name: trimmedName,
       },
     }));
   }

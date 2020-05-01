@@ -516,10 +516,15 @@ func (h *Hub) startTurn(
 		// on the channel timer.C. No other code in
 		// this goroutine is executed until that happens.
 		<-game.timer.C
-		game.timer = nil
+
+		log.Println("Timer expired, waiting on lock")
 
 		h.Lock()
 		defer h.Unlock()
+
+		log.Println(" - lock obtained")
+
+		game.timer = nil
 
 		log.Printf("Game state when timer ended: %s\n", game.state)
 		if !h.validateStateTransition(game.state, "turn-start") {

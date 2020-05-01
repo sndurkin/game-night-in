@@ -72,4 +72,8 @@ export default {
     '#ffffff',    // White
     '#000000',    // Black
   ],
+  LocalStorage: {
+    PLAYER_NAME: 'playerName',
+    ROOM_CODE: 'roomCode',
+  },
 };

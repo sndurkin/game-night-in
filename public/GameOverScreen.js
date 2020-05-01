@@ -30,10 +30,14 @@ export default class GameOverScreen extends Component {
   }
 
   handleMessage(data, e) {
-    this.props.transitionToScreen(Constants.Screens.ROOM);
-    this.props.updateStoreData({
-      teams: data.body.teams,
-    });
+    switch (data.event) {
+      case Constants.Events.UPDATED_ROOM:
+        this.props.transitionToScreen(Constants.Screens.ROOM);
+        this.props.updateStoreData({
+          teams: data.body.teams,
+        });
+        break;
+    }
   }
 
   rematch() {
