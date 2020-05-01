@@ -60,6 +60,10 @@ type ChangeCardRequest struct {
 	ChangeType string `json:"changeType"`
 }
 
+// RematchRequest is used by the owner of a room to restart
+// everything.
+type RematchRequest struct {}
+
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
 	Event string      `json:"event"`
@@ -93,7 +97,7 @@ type UpdatedGameEvent struct {
 	NumCardsLeftInRound   int        `json:"numCardsLeftInRound"`
 	NumCardsGuessedInTurn int        `json:"numCardsGuessedInTurn"`
 	TeamScoresByRound     [][]int    `json:"teamScoresByRound"`
-	WinningTeam           int        `json:"winningTeam"`
+	WinningTeam           *int       `json:"winningTeam,omitempty"`
 	CurrentRound          int        `json:"currentRound"`
 	CurrentPlayers        []int      `json:"currentPlayers"`
 	CurrentlyPlayingTeam  int        `json:"currentlyPlayingTeam"`
@@ -110,10 +114,11 @@ const (
 	ActionMovePlayer ActionT = 5
 	ActionStartGame  ActionT = 6
 	ActionStartTurn  ActionT = 7
+	ActionRematch    ActionT = 8
 
 	// Fishbowl game actions
-	ActionSubmitWords ActionT = 30
-	ActionChangeCard  ActionT = 31
+	ActionSubmitWords ActionT = 9
+	ActionChangeCard  ActionT = 10
 
 	EventInvalid     EventT = 0
 	EventCreatedGame EventT = 1
@@ -132,6 +137,7 @@ var (
 		ActionMovePlayer:  "move-player",
 		ActionStartGame:   "start-game",
 		ActionStartTurn:   "start-turn",
+		ActionRematch:     "rematch",
 		ActionSubmitWords: "submit-words",
 		ActionChangeCard:  "change-card",
 	}
@@ -154,6 +160,7 @@ var (
 		"move-player":    ActionMovePlayer,
 		"start-game":     ActionStartGame,
 		"start-turn":     ActionStartTurn,
+		"rematch":        ActionRematch,
 		"submit-words":   ActionSubmitWords,
 		"change-card":    ActionChangeCard,
 	}

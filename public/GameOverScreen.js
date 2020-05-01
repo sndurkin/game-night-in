@@ -9,40 +9,43 @@ export default class GameOverScreen extends Component {
   constructor(...args) {
     super(...args);
 
-
+    this.rematch = this.rematch.bind(this);
+    this.startOver = this.startOver.bind(this);
   }
 
   render() {
     const { teams, game } = this.props;
 
     return html`
-      <div class="screen">
-        ${this.confetti}
-        <div>Winner: Team ${game.winningTeam + 1}</div>
-        <ul>
-          ${teams[game.winningTeam].map(player => html`
-            <li>${player.name}</li>
-          `)}
-        </ul>
+      ${this.confetti}
+      <div class="game-over">
+        <div class="team-wins">Team ${game.winningTeam + 1} wins!</div>
+        ${this.isCurrentPlayer ? html`
+          <button class="lone" onClick=${this.rematch}>Rematch</button>
+          <div class="center-horiz">or</div>
+          <button class="lone" onClick=${this.startOver}>Start over</button>
+        ` : null}
       </div>
     `;
   }
 
   handleMessage(data, e) {
-    if (data.error) {
-      this.setState({ error: data.error });
-    }
+    this.props.transitionToScreen(Constants.Screens.ROOM);
+    this.props.updateStoreData({
+      teams: data.body.teams,
+    });
+  }
 
-    switch (data.event) {
-      case Constants.Events.UPDATED_GAME:
-        const game = data.body;
-        if (game.state === Constants.States.GAME_OVER) {
-          this.props.transitionToScreen(Constants.Screens.GAME_OVER);
-        } else {
-          this.props.updateStoreData({ game: game });
-        }
-        break;
-    }
+  rematch() {
+    const { conn } = this.props;
+    conn.send(JSON.stringify({
+      action: Constants.Actions.REMATCH,
+      body: {},
+    }));
+  }
+
+  startOver() {
+    window.location.reload();
   }
 
   get confetti() {
@@ -51,6 +54,9 @@ export default class GameOverScreen extends Component {
 
     const confettiStyles = [];
 
+    console.log('Rendering confetti: ' + baseColor + ' for winning team: ' +
+      game.winningTeam);
+    console.log(game);
     const { r, g, b } = Utils.colorToRGB(baseColor);
 
     // Lighter colors
@@ -101,6 +107,20 @@ export default class GameOverScreen extends Component {
         `)}
       </div>
     `;
+  }
+
+  // TODO: merge these with GameScreen.js
+  get isCurrentPlayer() {
+    const { name } = this.props;
+    return this.currentPlayer.name === name;
+  }
+
+  get currentPlayer() {
+    const { teams, game } = this.props;
+
+    const players = teams[game.currentlyPlayingTeam];
+    const playerIdx = game.currentPlayers[game.currentlyPlayingTeam];
+    return players[playerIdx];
   }
 
 }

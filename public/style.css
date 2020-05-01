@@ -99,6 +99,7 @@ button.lone {
 label {
   width: 100%;
   margin-bottom: 1em;
+  margin-left: 0.6em;
 }
 
 .label.error {
@@ -261,6 +262,9 @@ label {
   bottom: 0;
   left: 0;
   right: 0;
+
+  /* Render underneath the .game-over container */
+  z-index: -1;
 }
 
 .confetti {
@@ -310,3 +314,17 @@ label {
   75% { transform: rotateZ(5deg) rotateY(1080deg) translate(-10vw,80vh); }
   100% { transform: rotateZ(15deg) rotateY(1440deg) translate(10vw,110vh); }
 }
+
+.game-over {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-wins {
+  font-size: 2em;
+  margin-bottom: 2em;
+}
+

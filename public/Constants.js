@@ -17,6 +17,8 @@ export default {
     START_GAME: 'start-game',
     START_TURN: 'start-turn',
     CHANGE_CARD: 'change-card',
+
+    REMATCH: 'rematch',
   },
   States: {
     WAITING_ROOM: 'waiting-room',

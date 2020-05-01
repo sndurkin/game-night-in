@@ -85,16 +85,18 @@ export default class RoomScreen extends Component {
     const { words, wordBeingEntered } = this.state;
 
     return html`
-      <label>
-        Word
-        <input
-          ref=${r => this.inputRef = r}
-          type="text"
-          maxlength="20"
-          value="${wordBeingEntered}"
-          placeholder="Enter a word or phrase"
-          onInput=${this.onWordChange} />
-      </label>
+      <form>
+        <label>
+          Word
+          <input
+            ref=${r => this.inputRef = r}
+            type="text"
+            maxlength="20"
+            value="${wordBeingEntered}"
+            placeholder="Enter a word or phrase"
+            onInput=${this.onWordChange} />
+        </label>
+      </form>
       <div class="button-bar">
         <button onClick=${this.addWord}>Add</button>
         <div></div>

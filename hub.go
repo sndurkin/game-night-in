@@ -44,7 +44,6 @@ type Player struct {
 	room                   *GameRoom
 	isRoomOwner            bool
 	words                  []string
-	numCardsGuessedByRound []int
 }
 
 // Game holds all the data about the Fishbowl game.
@@ -53,12 +52,13 @@ type Game struct {
 	turnJustStarted       bool
 	cardsInRound          []string
 	currentServerTime     int64
+	timer                 *time.Timer
 	timerLength           int
 	lastCardGuessed       string
 	totalNumCards         int
 	numCardsGuessedInTurn int
 	teamScoresByRound     [][]int
-	winningTeam           int
+	winningTeam           *int
 	currentRound          int   // 0, 1, 2
 	currentPlayers        []int // [ team0PlayerIdx, team1PlayerIdx ]
 	currentlyPlayingTeam  int   // 0, 1, ...
@@ -87,6 +87,9 @@ var (
 		"turn-active": {
 			"turn-start",
 			"game-over",
+		},
+		"game-over": {
+			"waiting-room",
 		},
 	}
 )
@@ -199,6 +202,13 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 			return
 		}
 		h.changeCard(clientMessage, req)
+	case api.ActionRematch:
+		var req api.RematchRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Fatal(err)
+			return
+		}
+		h.rematch(clientMessage, req)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
@@ -489,14 +499,18 @@ func (h *Hub) startTurn(
 	game.lastCardGuessed = ""
 	game.timerLength = gameTimerLength + 1
 	game.currentServerTime = time.Now().UnixNano() / 1000000
-	timer := time.NewTimer(time.Second * time.Duration(game.timerLength))
+	if game.timer != nil {
+		game.timer.Stop()
+	}
+	game.timer = time.NewTimer(time.Second * time.Duration(game.timerLength))
 
 	// Wait for timer to finish in an asynchronous goroutine
 	go func() {
 		// Block until timer finishes. When it is done, it sends a message
 		// on the channel timer.C. No other code in
 		// this goroutine is executed until that happens.
-		<-timer.C
+		<-game.timer.C
+		game.timer = nil
 
 		h.Lock()
 		defer h.Unlock()
@@ -562,6 +576,10 @@ func (h *Hub) changeCard(
 		game.cardsInRound = game.cardsInRound[1:]
 
 		if len(game.cardsInRound) == 0 {
+			if game.timer != nil {
+				game.timer.Stop()
+			}
+
 			game.currentRound++
 			if game.currentRound < 3 {
 				// Round over, moving to next round
@@ -593,12 +611,53 @@ func (h *Hub) changeCard(
 					}
 				}
 
-				game.winningTeam = teamWithMax
+				game.winningTeam = &teamWithMax
 			}
 		}
 	} else {
 		// Skip this card, push it to the end
 		game.cardsInRound = append(game.cardsInRound[1:], game.cardsInRound[0])
+	}
+
+	h.sendUpdatedGameMessages(room, nil)
+}
+
+func (h *Hub) rematch(
+	clientMessage *ClientMessage,
+	req api.RematchRequest,
+) {
+	log.Printf("Rematch request\n")
+
+	h.Lock()
+	defer h.Unlock()
+
+	playerClient := h.playerClients[clientMessage.client]
+	room := playerClient.room
+	if room == nil {
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
+		return
+	}
+
+	if !playerClient.isRoomOwner {
+		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+		return
+	}
+
+	game := room.game
+	if !h.validateStateTransition(game.state, "waiting-room") {
+		h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
+		return
+	}
+
+	game.state = "waiting-room"
+	game.teamScoresByRound = make([][]int, 3)
+	game.lastCardGuessed = ""
+	game.winningTeam = nil
+
+	for _, teamPlayers := range room.teams {
+		for _, player := range teamPlayers {
+			player.words = nil
+		}
 	}
 
 	h.sendUpdatedGameMessages(room, nil)

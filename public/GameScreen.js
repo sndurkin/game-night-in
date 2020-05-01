@@ -106,10 +106,10 @@ export default class GameScreen extends Component {
     switch (data.event) {
       case Constants.Events.UPDATED_GAME:
         const game = data.body;
+
+        this.props.updateStoreData({ game: game });
         if (game.state === Constants.States.GAME_OVER) {
           this.props.transitionToScreen(Constants.Screens.GAME_OVER);
-        } else {
-          this.props.updateStoreData({ game: game });
         }
         break;
     }
