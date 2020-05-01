@@ -73,7 +73,7 @@ type GameRoom struct {
 }
 
 const (
-	gameTimerLength = 45
+	gameTimerLength = 4
 )
 
 var (

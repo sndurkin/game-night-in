@@ -1,6 +1,7 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
+import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 
@@ -11,7 +12,7 @@ export default class CreateGameScreen extends Component {
 
     this.state = {
       gameType: 'fishbowl',
-      name: Math.random().toString(36).substring(2, 8),
+      name: Utils.localhost ? Math.random().toString(36).substring(2, 8) : '',
       error: '',
     };
 

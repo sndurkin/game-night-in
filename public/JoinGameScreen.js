@@ -1,6 +1,7 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from './ScreenWrapper.js';
+import Utils from './Utils.js';
 import Constants from './Constants.js';
 
 
@@ -10,8 +11,8 @@ export default class JoinGameScreen extends Component {
     super(...args);
 
     this.state = {
-      name: Math.random().toString(36).substring(2, 8),
-      roomCode: '6374',
+      name: Utils.localhost ? Math.random().toString(36).substring(2, 8) : '',
+      roomCode: Utils.localhost ? '6374' : '',
       error: '',
     };
 

@@ -2,7 +2,9 @@ import Constants from './Constants.js';
 
 export default {
 
-  teamStyle: function(teamIdx) {
+  localhost: window.location.hostname === 'localhost',
+
+  teamStyle: function (teamIdx) {
     return [
       `background: ${Constants.TeamColors[teamIdx]}`,
       `color: ${this.fg(Constants.TeamColors[teamIdx])}`,
@@ -13,7 +15,7 @@ export default {
    * Returns the best foreground color that corresponds
    * to the input background color (e.g. '#ffffff').
    */
-  fg: function(bg) {
+  fg: function (bg) {
     const { r, g, b } = this.colorToRGB(bg);
     if ((r * 0.299 + g * 0.587 + b * 0.114) > 186) {
       return '#000000';
@@ -22,7 +24,7 @@ export default {
     return '#ffffff';
   },
 
-  colorToRGB: function(color) {
+  colorToRGB: function (color) {
     if (color[0] === '#') {
       color = color.substring(1);
     }
@@ -34,7 +36,7 @@ export default {
     };
   },
 
-  rgbToColor: function(rgb) {
+  rgbToColor: function (rgb) {
     const { r, g, b } = rgb;
     return '#'
       + this.normalize(r).toString(16).padStart(2, '0')
@@ -42,7 +44,7 @@ export default {
       + this.normalize(b).toString(16).padStart(2, '0');
   },
 
-  normalize: function(hex) {
+  normalize: function (hex) {
     return Math.min(255, Math.max(0, Math.floor(hex)));
   },
 
