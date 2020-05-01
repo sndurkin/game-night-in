@@ -293,15 +293,17 @@ func (h *Hub) joinGame(clientMessage *ClientMessage, req api.JoinGameRequest) {
 	if matchedPlayer != nil {
 		playerAddr := matchedPlayer.client.conn.RemoteAddr().(*net.TCPAddr)
 		reqAddr := clientMessage.client.conn.RemoteAddr().(*net.TCPAddr)
+
 		if reqAddr.IP.String() != playerAddr.IP.String() {
-			log.Printf("Client with IP %s tried to join with same name as client with IP %s\n",
+			log.Printf("Client with IP %s rejoining with same name as client with IP %s\n",
 				reqAddr.IP.String(), playerAddr.IP.String())
-			h.sendErrorMessage(clientMessage,
-				"A player with that name is already in the room.")
-			return
+			/*
+				h.sendErrorMessage(clientMessage,
+					"A player with that name is already in the room.")
+				return
+			*/
 		}
 
-		log.Printf("A player with the provided name and IP is already in the room/game\n")
 		if matchedPlayer.client != clientMessage.client {
 			matchedPlayer.client.conn.Close()
 			delete(h.playerClients, matchedPlayer.client)
