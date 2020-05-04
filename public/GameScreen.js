@@ -180,19 +180,20 @@ export default class GameScreen extends Component {
   }
 
   get gameAreaContents() {
-    const { game } = this.props;
+    const { room, game } = this.props;
 
     if (game.state === Constants.States.TURN_START && game.numCardsLeftInRound === game.totalNumCards) {
+      const currentRoundType = room.settings.rounds[game.currentRound];
       return html`
         <div class="round-start">
           <div class="round-start-title">
             Round ${game.currentRound + 1}
           </div>
           <div class="round-start-subtitle">
-            ${Constants.Fishbowl.Rounds[game.currentRound].name}
+            ${Constants.Fishbowl.RoundTypes[currentRoundType].title}
           </div>
           <div class="round-start-desc">
-            ${Constants.Fishbowl.Rounds[game.currentRound].long}
+            ${Constants.Fishbowl.RoundTypes[currentRoundType].long}
           </div>
         </div>
       `;

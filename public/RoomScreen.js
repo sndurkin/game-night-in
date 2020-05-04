@@ -32,6 +32,7 @@ export default class RoomScreen extends Component {
 
     this.state = {
       error: '',
+      changingSettings: false,
 
       wordBeingEntered: '',
       words: document.location.protocol === 'https:' ? [] : getWords(5),
@@ -44,6 +45,8 @@ export default class RoomScreen extends Component {
     this.onWordChange = this.onWordChange.bind(this);
     this.addWord = this.addWord.bind(this);
     this.submitWords = this.submitWords.bind(this);
+    this.openChangeSettings = this.openChangeSettings.bind(this);
+    this.closeChangeSettings = this.closeChangeSettings.bind(this);
 
     this.addTeam = this.addTeam.bind(this);
     this.movePlayer = this.movePlayer.bind(this);
@@ -64,7 +67,11 @@ export default class RoomScreen extends Component {
 
   render() {
     const { name, teams } = this.props;
-    const { error } = this.state;
+    const { changingSettings, error } = this.state;
+
+    if (changingSettings) {
+      return this.renderChangeSettingsDialog();
+    }
 
     return html`
       <${ScreenWrapper}
@@ -75,9 +82,56 @@ export default class RoomScreen extends Component {
           ${error && html`
             <span class="label error">${error}</span>
           `}
-          ${!this.player.wordsSubmitted ? this.renderSubmitWords() : this.renderTeams()}
+          ${!this.player.wordsSubmitted ? this.renderSubmitWords() : this.renderRoom()}
         </div>
       <//>
+    `;
+  }
+
+  renderChangeSettingsDialog() {
+    const { settings } = this.props;
+    const { error } = this.state;
+    const { rounds } = settings;
+
+    const header = html`
+      <button class="close-settings pseudo">✖</button>
+    `;
+
+    return html`
+      <${ScreenWrapper} header=${header}>
+        <div class="screen">
+          ${error && html`
+            <span class="label error">${error}</span>
+          `}
+          <table class="primary rounds-table">
+            <tbody>
+              ${rounds.map(this.renderRoundTableRow)}
+            </tbody>
+          </table>
+        </div>
+      <//>
+    `;
+  }
+
+  renderRoundTableRow(round, idx) {
+    return html`
+      <tr>
+        <td>${idx + 1}</td>
+        <td width="99%">
+          <select>
+            ${Object.entries(Constants.Fishbowl.RoundTypes).map(e => html`
+              <option value = ${e[0]} selected=${e[0] === round}>
+                ${e[1].title}
+              </option>
+            `)}
+          </select>
+        </td >
+        <td>
+          <button class="pseudo" onClick=${() => this.removeRound(idx)}>
+            ✖
+          </button>
+        </td>
+      </tr >
     `;
   }
 
@@ -125,12 +179,13 @@ export default class RoomScreen extends Component {
     `;
   }
 
-  renderTeams() {
+  renderRoom() {
     const { isRoomOwner } = this.props;
     const { showMovePlayerModal, teamIdxToMoveFrom } = this.state;
     const teams = this.props.teams || [];
 
     return html`
+      ${this.renderSettingsSummary()}
       <div class="teams">
         ${teams.map((team, idx) => html`
           <div class="team">
@@ -205,6 +260,23 @@ export default class RoomScreen extends Component {
     `;
   }
 
+  renderSettingsSummary() {
+    const { settings } = this.props;
+    const { rounds } = settings;
+
+    return html`
+      <div class="settings">
+        <div class="settings-header">
+          <div class="settings-title">Settings</div>
+          <a onClick=${this.openChangeSettings}>Change</a>
+        </div>
+        <div>
+          <span>${rounds.length} round${rounds.length !== 1 ? 's' : ''}</span>
+        </div>
+      </div >
+    `;
+  }
+
   handleMessage(data, e) {
     if (data.error) {
       this.setState({ error: data.error });
@@ -212,7 +284,10 @@ export default class RoomScreen extends Component {
 
     switch (data.event) {
       case Constants.Events.UPDATED_ROOM:
-        this.props.updateStoreData({ teams: data.body.teams });
+        this.props.updateStoreData({
+          teams: data.body.teams,
+          settings: data.body.settings,
+        });
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({ game: data.body });
@@ -263,6 +338,18 @@ export default class RoomScreen extends Component {
         words: this.state.words,
       },
     }));
+  }
+
+  openChangeSettings() {
+    this.setState({
+      changingSettings: true,
+    });
+  }
+
+  closeChangeSettings() {
+    this.setState({
+      changingSettings: false,
+    });
   }
 
   addTeam() {

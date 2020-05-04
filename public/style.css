@@ -132,6 +132,29 @@ label {
   padding: 0.5em 1em;
 }
 
+.settings {
+  margin-bottom: 2em;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5em;
+}
+
+.settings-title {
+  font-weight: bold;
+  margin-right: auto;
+}
+
+.close-settings {
+  margin-left: auto;
+}
+
+.rounds-table td {
+  padding: 0 .3em;
+}
+
 .teams {
   flex: 1;
   overflow: auto;

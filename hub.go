@@ -46,6 +46,12 @@ type Player struct {
 	words       []string
 }
 
+// GameSettings holds all the data about the Fishbowl
+// game settings.
+type GameSettings struct {
+	rounds []api.RoundT
+}
+
 // Game holds all the data about the Fishbowl game.
 type Game struct {
 	state                 string
@@ -70,6 +76,7 @@ type GameRoom struct {
 	gameType string
 	teams    [][]*Player
 	game     *Game
+	settings *GameSettings
 }
 
 const (
@@ -181,6 +188,13 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 			return
 		}
 		h.submitWords(clientMessage, req)
+	case api.ActionChangeSettings:
+		var req api.ChangeSettingsRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Fatal(err)
+			return
+		}
+		h.changeSettings(clientMessage, req)
 	case api.ActionStartGame:
 		var req api.StartGameRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -228,6 +242,13 @@ func (h *Hub) createGame(
 			state:             "waiting-room",
 			teamScoresByRound: make([][]int, 3),
 		},
+		settings : &GameSettings{
+			rounds: []api.RoundT{
+				api.RoundDescribe,
+				api.RoundSingleWord,
+				api.RoundCharades,
+			},
+		},
 	}
 
 	h.Lock()
@@ -248,7 +269,7 @@ func (h *Hub) createGame(
 	log.Printf("%+v\n", h.rooms)
 
 	var msg api.OutgoingMessage
-	msg.Event = "created-game"
+	msg.Event = api.Event[api.EventCreatedGame]
 	msg.Body = api.CreatedGameEvent{
 		RoomCode: room.roomCode,
 		Team:     0,
@@ -350,6 +371,31 @@ func (h *Hub) submitWords(
 	}
 
 	playerClient.words = req.Words
+	h.sendUpdatedGameMessages(room, nil)
+}
+
+func (h *Hub) changeSettings(
+	clientMessage *ClientMessage,
+	req api.ChangeSettingsRequest,
+) {
+	log.Printf("Change settings request\n")
+
+	h.Lock()
+	defer h.Unlock()
+
+	playerClient := h.playerClients[clientMessage.client]
+	room := playerClient.room
+	if room == nil {
+		h.sendErrorMessage(clientMessage, "You are not in a game.")
+		return
+	}
+
+	if !playerClient.isRoomOwner {
+		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+		return
+	}
+
+	room.settings = convertAPISettingsToSettings(req.Settings)
 	h.sendUpdatedGameMessages(room, nil)
 }
 

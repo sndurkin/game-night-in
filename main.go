@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/sndurkin/gaming-remotely/api"
 )
 
 const (
@@ -49,6 +51,8 @@ func logRoute(f http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	api.Init()
+
 	hub := newHub()
 	go hub.run()
 

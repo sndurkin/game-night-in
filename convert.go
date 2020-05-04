@@ -23,3 +23,25 @@ func convertTeamsToAPITeams(teams [][]*Player) [][]api.Player {
 	}
 	return apiTeams
 }
+
+func convertSettingsToAPISettings(settings *GameSettings) api.GameSettings {
+	apiRounds := make([]string, 0, len(settings.rounds))
+	for _, round := range settings.rounds {
+		apiRounds = append(apiRounds, api.Round[round])
+	}
+
+	return api.GameSettings{
+		Rounds: apiRounds,
+	}
+}
+
+func convertAPISettingsToSettings(apiSettings api.GameSettings) *GameSettings {
+	rounds := make([]api.RoundT, 0, len(apiSettings.Rounds))
+	for _, apiRound := range apiSettings.Rounds {
+		rounds = append(rounds, api.RoundLookup[apiRound])
+	}
+
+	return &GameSettings{
+		rounds: rounds,
+	}
+}

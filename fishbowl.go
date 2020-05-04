@@ -12,9 +12,10 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 
 	if game.state == "waiting-room" {
 		var msg api.OutgoingMessage
-		msg.Event = "updated-room"
+		msg.Event = api.Event[api.EventUpdatedRoom]
 		msg.Body = api.UpdatedRoomEvent{
 			Teams: convertTeamsToAPITeams(room.teams),
+			Settings: convertSettingsToAPISettings(room.settings),
 		}
 
 		log.Printf("Sending out updated room messages\n")
@@ -43,7 +44,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 	}
 
 	var msgToCurrentPlayer api.OutgoingMessage
-	msgToCurrentPlayer.Event = "updated-game"
+	msgToCurrentPlayer.Event = api.Event[api.EventUpdatedGame]
 	msgToCurrentPlayer.Body = api.UpdatedGameEvent{
 		State:                 game.state,
 		LastCardGuessed:       game.lastCardGuessed,
@@ -61,7 +62,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 	}
 
 	var msgToOtherPlayers api.OutgoingMessage
-	msgToOtherPlayers.Event = "updated-game"
+	msgToOtherPlayers.Event = api.Event[api.EventUpdatedGame]
 	msgToOtherPlayers.Body = api.UpdatedGameEvent{
 		State:                 game.state,
 		LastCardGuessed:       game.lastCardGuessed,

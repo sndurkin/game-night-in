@@ -2,6 +2,7 @@ package api
 
 type ActionT int
 type EventT int
+type RoundT int
 
 // Player holds all the relevant information about a specific player
 // in a game room.
@@ -9,6 +10,12 @@ type Player struct {
 	Name           string `json:"name"`
 	IsRoomOwner    bool   `json:"isRoomOwner,omitempty"`
 	WordsSubmitted bool   `json:"wordsSubmitted,omitempty"`
+}
+
+// GameSettings holds all the relevant information about a game's
+// settings.
+type GameSettings struct {
+	Rounds []string `json:"rounds"`
 }
 
 // IncomingMessage holds any incoming websocket message.
@@ -43,9 +50,19 @@ type MovePlayerRequest struct {
 	ToTeam     int    `json:"toTeam"`
 }
 
-// AddTeamRequest is used by the owner of a room to create a new
-// team.
+// AddTeamRequest is used by the owner of a room to add a new
+// team to the game.
 type AddTeamRequest struct{}
+
+// RemoveTeamRequest is used by the owner of a room to remove a
+// team from the game.
+type RemoveTeamRequest struct{}
+
+// ChangeSettingsRequest is used by the owner of a room to change
+// the game settings.
+type ChangeSettingsRequest struct{
+	Settings GameSettings `json:"settings"`,
+}
 
 // StartGameRequest is used by the owner of a room to start the game.
 type StartGameRequest struct{}
@@ -82,7 +99,8 @@ type CreatedGameEvent struct {
 // in a room whenever a change has been made to it (e.g. player joining,
 // player switching teams, etc).
 type UpdatedRoomEvent struct {
-	Teams [][]Player `json:"teams"`
+	Teams    [][]Player   `json:"teams"`
+	Settings GameSettings `json:"settings"`
 }
 
 // UpdatedGameEvent is an event that is sent to all players
@@ -106,24 +124,36 @@ type UpdatedGameEvent struct {
 
 const (
 	// General game actions
-	ActionInvalid    ActionT = 0
-	ActionCreateGame ActionT = 1
-	ActionJoinGame   ActionT = 2
-	ActionAddTeam    ActionT = 3
-	ActionRemoveTeam ActionT = 4
-	ActionMovePlayer ActionT = 5
-	ActionStartGame  ActionT = 6
-	ActionStartTurn  ActionT = 7
-	ActionRematch    ActionT = 8
+	ActionInvalid    ActionT = iota
+	ActionCreateGame
+	ActionJoinGame
+	ActionAddTeam
+	ActionRemoveTeam
+	ActionMovePlayer
+	ActionChangeSettings
+	ActionStartGame
+	ActionStartTurn
+	ActionRematch
 
 	// Fishbowl game actions
-	ActionSubmitWords ActionT = 9
-	ActionChangeCard  ActionT = 10
+	ActionSubmitWords
+	ActionChangeCard
+)
 
-	EventInvalid     EventT = 0
-	EventCreatedGame EventT = 1
-	EventUpdatedRoom EventT = 2
-	EventUpdatedGame EventT = 3
+const (
+	// Event types
+	EventInvalid     EventT = iota
+	EventCreatedGame
+	EventUpdatedRoom
+	EventUpdatedGame
+)
+
+const (
+	// Round types
+	RoundInvalid RoundT = iota
+	RoundDescribe
+	RoundSingleWord
+	RoundCharades
 )
 
 var (
@@ -142,6 +172,9 @@ var (
 		ActionChangeCard:  "change-card",
 	}
 
+	// ActionLookup holds a reverse map of Action.
+	ActionLookup = make(map[string]ActionT)
+
 	// Event holds a map of event types to protocol string.
 	Event = map[EventT]string{
 		EventInvalid:     "invalid event",
@@ -150,18 +183,24 @@ var (
 		EventUpdatedGame: "updated-game",
 	}
 
-	// ActionLookup holds a reverse map of Action.
-	ActionLookup = map[string]ActionT{
-		"invalid action": ActionInvalid,
-		"create-game":    ActionCreateGame,
-		"join-game":      ActionJoinGame,
-		"add-team":       ActionAddTeam,
-		"remove-team":    ActionRemoveTeam,
-		"move-player":    ActionMovePlayer,
-		"start-game":     ActionStartGame,
-		"start-turn":     ActionStartTurn,
-		"rematch":        ActionRematch,
-		"submit-words":   ActionSubmitWords,
-		"change-card":    ActionChangeCard,
+	// Round holds a map of round types to protocol string.
+	Round = map[RoundT]string{
+		RoundInvalid:    "invalid round",
+		RoundDescribe:   "describe",
+		RoundSingleWord: "single",
+		RoundCharades:   "charades",
 	}
+
+	// RoundLookup holds a reverse map of Round.
+	RoundLookup = make(map[string]RoundT)
 )
+
+func Init() {
+	for actionType, action := range Action {
+		ActionLookup[action] = actionType
+	}
+
+	for roundType, round := range Round {
+		RoundLookup[round] = roundType
+	}
+}
