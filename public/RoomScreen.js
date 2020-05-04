@@ -296,6 +296,10 @@ export default class RoomScreen extends Component {
     }
   }
 
+  removeRound(idx) {
+
+  }
+
   onWordChange(e) {
     this.setState({ wordBeingEntered: e.target.value });
   }
