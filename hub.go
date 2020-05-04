@@ -239,10 +239,9 @@ func (h *Hub) createGame(
 		roomCode: h.generateUniqueRoomCode(),
 		teams:    make([][]*Player, 2),
 		game: &Game{
-			state:             "waiting-room",
-			teamScoresByRound: make([][]int, 3),
+			state: "waiting-room",
 		},
-		settings : &GameSettings{
+		settings: &GameSettings{
 			rounds: []api.RoundT{
 				api.RoundDescribe,
 				api.RoundSingleWord,
@@ -481,11 +480,7 @@ func (h *Hub) startGame(
 	game.state = "turn-start"
 
 	h.reshuffleCardsForRound(room)
-
-	// Init team scores
-	game.teamScoresByRound[0] = make([]int, len(room.teams))
-	game.teamScoresByRound[1] = make([]int, len(room.teams))
-	game.teamScoresByRound[2] = make([]int, len(room.teams))
+	h.initGameScores(room)
 
 	game.currentRound = 0
 	game.currentPlayers = make([]int, len(room.teams))
@@ -638,7 +633,7 @@ func (h *Hub) changeCard(
 			}
 
 			game.currentRound++
-			if game.currentRound < 3 {
+			if game.currentRound < len(room.settings.rounds) {
 				// Round over, moving to next round
 				game.state = "turn-start"
 
@@ -651,7 +646,7 @@ func (h *Hub) changeCard(
 				game.currentlyPlayingTeam = getRandomNumberInRange(0,
 					len(room.teams)-1)
 			} else {
-				game.state = "game-over"
+				game.state = "game-over" // TODO: update to use constant from api.go
 
 				totalScores := make([]int, len(room.teams))
 				for _, scoresByTeam := range game.teamScoresByRound {
@@ -707,7 +702,7 @@ func (h *Hub) rematch(
 	}
 
 	game.state = "waiting-room"
-	game.teamScoresByRound = make([][]int, 3)
+	h.initGameScores(room)
 	game.lastCardGuessed = ""
 	game.winningTeam = nil
 
@@ -719,6 +714,14 @@ func (h *Hub) rematch(
 
 	log.Println("Sending out updated game messages for rematch")
 	h.sendUpdatedGameMessages(room, nil)
+}
+
+func (h *Hub) initGameScores(room *GameRoom) {
+	game := room.game
+	game.teamScoresByRound = make([][]int, len(room.settings.rounds))
+	for idx := range room.settings.rounds {
+		game.teamScoresByRound[idx] = make([]int, len(room.teams))
+	}
 }
 
 // This function must be called with the mutex held.

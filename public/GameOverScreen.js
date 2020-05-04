@@ -14,17 +14,62 @@ export default class GameOverScreen extends Component {
   }
 
   render() {
-    const { teams, game } = this.props;
+    const { isRoomOwner, teams, game } = this.props;
+
+    const teamScores = teams.map((_, idx) => ({
+      idx: idx,
+      score: 0,
+    }));
+    for (let roundScores of game.teamScoresByRound) {
+      for (let i = 0; i < teamScores.length; i++) {
+        const teamScore = teamScores[i];
+        teamScore.score += roundScores[i];
+      }
+    }
+    teamScores.sort((a, b) => b.score - a.score);
 
     return html`
       ${this.confetti}
       <div class="game-over">
         <div class="team-wins">Team ${game.winningTeam + 1} wins!</div>
-        ${this.isCurrentPlayer ? html`
+        ${isRoomOwner ? html`
           <button class="lone" onClick=${this.rematch}>Rematch</button>
           <div class="center-horiz">or</div>
           <button class="lone" onClick=${this.startOver}>Start over</button>
         ` : null}
+        <h3 class="scores-table-title">Scores</h3>
+        <div class="scores-table-ct">
+          <table class="primary scores-table" width="100%">
+            <thead>
+              <tr>
+                <th></th>
+                <th colspan=${teamScores.length}>Teams</th>
+              </tr>
+              <tr>
+                <th>Round</th>
+                ${teamScores.map((_, idx) => html`
+                  <th>${idx + 1}</th>
+                `)}
+              </tr>
+            </thead>
+            <tbody>
+              ${game.teamScoresByRound.map((roundScores, idx) => html`
+                <tr>
+                  <td>${idx + 1}</td>
+                  ${teamScores.map(teamScore => html`
+                    <td>${roundScores[teamScore.idx]}</td>
+                  `)}
+                </tr>
+              `)}
+              <tr>
+                <td><b>Totals</b></td>
+                ${teamScores.map(teamScore => html`
+                  <td><b>${teamScore.score}</b></td>
+                `)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     `;
   }
@@ -58,9 +103,9 @@ export default class GameOverScreen extends Component {
 
     const confettiStyles = [];
 
-    console.log('Rendering confetti: ' + baseColor + ' for winning team: ' +
-      game.winningTeam);
-    console.log(game);
+    // console.log('Rendering confetti: ' + baseColor + ' for winning team: ' +
+    //   game.winningTeam);
+    // console.log(game);
     const { r, g, b } = Utils.colorToRGB(baseColor);
 
     // Lighter colors
@@ -111,20 +156,6 @@ export default class GameOverScreen extends Component {
         `)}
       </div>
     `;
-  }
-
-  // TODO: merge these with GameScreen.js
-  get isCurrentPlayer() {
-    const { name } = this.props;
-    return this.currentPlayer.name === name;
-  }
-
-  get currentPlayer() {
-    const { teams, game } = this.props;
-
-    const players = teams[game.currentlyPlayingTeam];
-    const playerIdx = game.currentPlayers[game.currentlyPlayingTeam];
-    return players[playerIdx];
   }
 
 }

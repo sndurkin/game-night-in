@@ -60,8 +60,8 @@ type RemoveTeamRequest struct{}
 
 // ChangeSettingsRequest is used by the owner of a room to change
 // the game settings.
-type ChangeSettingsRequest struct{
-	Settings GameSettings `json:"settings"`,
+type ChangeSettingsRequest struct {
+	Settings GameSettings `json:"settings"`
 }
 
 // StartGameRequest is used by the owner of a room to start the game.
@@ -79,7 +79,7 @@ type ChangeCardRequest struct {
 
 // RematchRequest is used by the owner of a room to restart
 // everything.
-type RematchRequest struct {}
+type RematchRequest struct{}
 
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
@@ -124,7 +124,7 @@ type UpdatedGameEvent struct {
 
 const (
 	// General game actions
-	ActionInvalid    ActionT = iota
+	ActionInvalid ActionT = iota
 	ActionCreateGame
 	ActionJoinGame
 	ActionAddTeam
@@ -142,7 +142,7 @@ const (
 
 const (
 	// Event types
-	EventInvalid     EventT = iota
+	EventInvalid EventT = iota
 	EventCreatedGame
 	EventUpdatedRoom
 	EventUpdatedGame
@@ -159,17 +159,18 @@ const (
 var (
 	// Action holds a map of action types to protocol string.
 	Action = map[ActionT]string{
-		ActionInvalid:     "invalid action",
-		ActionCreateGame:  "create-game",
-		ActionJoinGame:    "join-game",
-		ActionAddTeam:     "add-team",
-		ActionRemoveTeam:  "remove-team",
-		ActionMovePlayer:  "move-player",
-		ActionStartGame:   "start-game",
-		ActionStartTurn:   "start-turn",
-		ActionRematch:     "rematch",
-		ActionSubmitWords: "submit-words",
-		ActionChangeCard:  "change-card",
+		ActionInvalid:        "invalid action",
+		ActionCreateGame:     "create-game",
+		ActionJoinGame:       "join-game",
+		ActionAddTeam:        "add-team",
+		ActionRemoveTeam:     "remove-team",
+		ActionMovePlayer:     "move-player",
+		ActionChangeSettings: "change-settings",
+		ActionStartGame:      "start-game",
+		ActionStartTurn:      "start-turn",
+		ActionRematch:        "rematch",
+		ActionSubmitWords:    "submit-words",
+		ActionChangeCard:     "change-card",
 	}
 
 	// ActionLookup holds a reverse map of Action.

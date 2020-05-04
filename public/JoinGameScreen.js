@@ -90,6 +90,7 @@ export default class JoinGameScreen extends Component {
       case Constants.Events.UPDATED_ROOM:
         this.props.updateStoreData({
           ...sharedProps,
+          settings: data.body.settings,
           teams: data.body.teams,
         });
         this.props.transitionToScreen(Constants.Screens.ROOM);

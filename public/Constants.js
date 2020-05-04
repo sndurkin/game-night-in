@@ -13,6 +13,7 @@ export default {
     SUBMIT_WORDS: 'submit-words',
     ADD_TEAM: 'add-team',
     MOVE_PLAYER: 'move-player',
+    CHANGE_SETTINGS: 'change-settings',
 
     START_GAME: 'start-game',
     START_TURN: 'start-turn',

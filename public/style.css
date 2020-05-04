@@ -343,7 +343,7 @@ label {
 }
 
 .game-over {
-  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -355,3 +355,24 @@ label {
   margin-bottom: 2em;
 }
 
+h3.scores-table-title {
+  margin: 1em 0 0 1em;
+}
+
+.scores-table-ct {
+  flex: 1;
+  width: 100%;
+  overflow: auto;
+  margin-bottom: 2em;
+}
+
+.scores-table th {
+  background-color: #999;
+  border-bottom: 1px solid #fff;
+}
+
+.scores-table th
+.scores-table td {
+  padding: .3em 1em;
+  text-align: right;
+}

@@ -32,7 +32,8 @@ export default class RoomScreen extends Component {
 
     this.state = {
       error: '',
-      changingSettings: false,
+
+      changedSettings: null,
 
       wordBeingEntered: '',
       words: document.location.protocol === 'https:' ? [] : getWords(5),
@@ -47,6 +48,9 @@ export default class RoomScreen extends Component {
     this.submitWords = this.submitWords.bind(this);
     this.openChangeSettings = this.openChangeSettings.bind(this);
     this.closeChangeSettings = this.closeChangeSettings.bind(this);
+    this.renderRoundTableRow = this.renderRoundTableRow.bind(this);
+    this.removeRound = this.removeRound.bind(this);
+    this.saveSettings = this.saveSettings.bind(this);
 
     this.addTeam = this.addTeam.bind(this);
     this.movePlayer = this.movePlayer.bind(this);
@@ -67,9 +71,9 @@ export default class RoomScreen extends Component {
 
   render() {
     const { name, teams } = this.props;
-    const { changingSettings, error } = this.state;
+    const { changedSettings, error } = this.state;
 
-    if (changingSettings) {
+    if (changedSettings) {
       return this.renderChangeSettingsDialog();
     }
 
@@ -89,9 +93,8 @@ export default class RoomScreen extends Component {
   }
 
   renderChangeSettingsDialog() {
-    const { settings } = this.props;
     const { error } = this.state;
-    const { rounds } = settings;
+    const { rounds } = this.settings;
 
     const header = html`
       <button class="close-settings pseudo">✖</button>
@@ -103,11 +106,13 @@ export default class RoomScreen extends Component {
           ${error && html`
             <span class="label error">${error}</span>
           `}
+          <h3>Rounds</h3>
           <table class="primary rounds-table">
             <tbody>
               ${rounds.map(this.renderRoundTableRow)}
             </tbody>
           </table>
+          <button class="lone" onClick=${this.saveSettings}>Save</button>
         </div>
       <//>
     `;
@@ -120,18 +125,18 @@ export default class RoomScreen extends Component {
         <td width="99%">
           <select>
             ${Object.entries(Constants.Fishbowl.RoundTypes).map(e => html`
-              <option value = ${e[0]} selected=${e[0] === round}>
+              <option value=${e[0]} selected=${e[0] === round}>
                 ${e[1].title}
               </option>
             `)}
           </select>
-        </td >
+        </td>
         <td>
           <button class="pseudo" onClick=${() => this.removeRound(idx)}>
             ✖
           </button>
         </td>
-      </tr >
+      </tr>
     `;
   }
 
@@ -248,7 +253,7 @@ export default class RoomScreen extends Component {
               <span
                 class="button stack"
                 disabled=${teamIdxToMoveFrom === idx}
-                onClick=${() => { teamIdxToMoveFrom !== idx && this.movePlayer(idx); }}
+                onClick=${() => { teamIdxToMoveFrom !== idx && this.movePlayer({ teamIdxToMoveTo: idx }); }}
               >
                 Team ${idx + 1}
               </span>
@@ -261,14 +266,16 @@ export default class RoomScreen extends Component {
   }
 
   renderSettingsSummary() {
-    const { settings } = this.props;
-    const { rounds } = settings;
+    const { isRoomOwner } = this.props;
+    const { rounds } = this.settings;
 
     return html`
       <div class="settings">
         <div class="settings-header">
           <div class="settings-title">Settings</div>
-          <a onClick=${this.openChangeSettings}>Change</a>
+          ${isRoomOwner ? html`
+            <a onClick=${this.openChangeSettings}>Change</a>
+          ` : null}
         </div>
         <div>
           <span>${rounds.length} round${rounds.length !== 1 ? 's' : ''}</span>
@@ -297,7 +304,31 @@ export default class RoomScreen extends Component {
   }
 
   removeRound(idx) {
+    const newSettings = JSON.parse(JSON.stringify(this.settings));
+    newSettings.rounds.splice(idx, 1);
 
+    this.setState({
+      changedSettings: newSettings,
+    });
+  }
+
+  saveSettings() {
+    const settings = this.state.changedSettings;
+    this.setState({
+      changedSettings: null,
+    });
+
+    const { conn } = this.props;
+    conn.send(JSON.stringify({
+      action: Constants.Actions.CHANGE_SETTINGS,
+      body: {
+        settings: settings,
+      },
+    }));
+  }
+
+  get settings() {
+    return this.state.changedSettings || this.props.settings;
   }
 
   onWordChange(e) {
@@ -346,13 +377,13 @@ export default class RoomScreen extends Component {
 
   openChangeSettings() {
     this.setState({
-      changingSettings: true,
+      changedSettings: JSON.parse(JSON.stringify(this.props.settings)),
     });
   }
 
   closeChangeSettings() {
     this.setState({
-      changingSettings: false,
+      changedSettings: null,
     });
   }
 
@@ -365,6 +396,17 @@ export default class RoomScreen extends Component {
   }
 
   showMovePlayerModal(teamIdx, player) {
+    const { teams } = this.props;
+    if (teams.length === 2) {
+      // If there are only 2 teams, don't bother showing the modal.
+      this.movePlayer({
+        name: player.name,
+        teamIdxToMoveFrom: teamIdx,
+        teamIdxToMoveTo: teamIdx === 0 ? 1 : 0,
+      });
+      return;
+    }
+
     this.setState({
       showMovePlayerModal: true,
       playerToMove: player,
@@ -372,13 +414,13 @@ export default class RoomScreen extends Component {
     });
   }
 
-  movePlayer(teamIdxToMoveTo) {
+  movePlayer({ name, teamIdxToMoveFrom, teamIdxToMoveTo }) {
     const { conn } = this.props;
     conn.send(JSON.stringify({
       action: Constants.Actions.MOVE_PLAYER,
       body: {
-        playerName: this.state.playerToMove.name,
-        fromTeam: this.state.teamIdxToMoveFrom,
+        playerName: typeof name !== 'undefined' ? name : this.state.playerToMove.name,
+        fromTeam: typeof teamIdxToMoveFrom !== 'undefined' ? teamIdxToMoveFrom : this.state.teamIdxToMoveFrom,
         toTeam: teamIdxToMoveTo,
       },
     }));
