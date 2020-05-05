@@ -5,6 +5,8 @@
 package main
 
 import (
+	"time"
+	"math/rand"
 	"os"
 	"fmt"
 	"log"
@@ -51,6 +53,8 @@ func logRoute(f http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	api.Init()
 
 	hub := newHub()

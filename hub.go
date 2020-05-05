@@ -504,7 +504,6 @@ func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
 	}
 	game.totalNumCards = len(game.cardsInRound)
 
-	// TODO: rand.Seed(time.Now().UnixNano())
 	arr := game.cardsInRound
 	rand.Shuffle(len(game.cardsInRound), func(i, j int) {
 		arr[i], arr[j] = arr[j], arr[i]

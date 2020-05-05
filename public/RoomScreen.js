@@ -49,6 +49,7 @@ export default class RoomScreen extends Component {
     this.openChangeSettings = this.openChangeSettings.bind(this);
     this.closeChangeSettings = this.closeChangeSettings.bind(this);
     this.renderRoundTableRow = this.renderRoundTableRow.bind(this);
+    this.selectRound = this.selectRound.bind(this);
     this.removeRound = this.removeRound.bind(this);
     this.saveSettings = this.saveSettings.bind(this);
 
@@ -123,7 +124,7 @@ export default class RoomScreen extends Component {
       <tr>
         <td>${idx + 1}</td>
         <td width="99%">
-          <select>
+          <select onChange=${e => this.selectRound(idx, e)}>
             ${Object.entries(Constants.Fishbowl.RoundTypes).map(e => html`
               <option value=${e[0]} selected=${e[0] === round}>
                 ${e[1].title}
@@ -301,6 +302,15 @@ export default class RoomScreen extends Component {
         this.props.transitionToScreen(Constants.Screens.GAME);
         break;
     }
+  }
+
+  selectRound(idx, e) {
+    const newSettings = JSON.parse(JSON.stringify(this.settings));
+    newSettings.rounds[idx] = e.target.value;
+
+    this.setState({
+      changedSettings: newSettings,
+    });
   }
 
   removeRound(idx) {
