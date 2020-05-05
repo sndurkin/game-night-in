@@ -134,7 +134,7 @@ export default class GameScreen extends Component {
   }
 
   get header() {
-    const { teams, game } = this.props;
+    const { teams, game, settings } = this.props;
 
     return teams.map((_, teamIdx) => {
       const result = [];
@@ -144,9 +144,14 @@ export default class GameScreen extends Component {
 
       const teamColor = Constants.TeamColors[teamIdx];
 
+      let totalScore = 0;
+      for (let i = 0; i < settings.rounds.length; i++) {
+        totalScore += game.teamScoresByRound[i][teamIdx];
+      }
+
       result.push(html`
         <div class="team-score" style="border-bottom-color: ${teamColor}">
-          ${game.teamScoresByRound[game.currentRound][teamIdx]}
+          ${totalScore}
         </div>
       `);
 

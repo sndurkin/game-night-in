@@ -42,13 +42,14 @@ export default class GameOverScreen extends Component {
           <table class="primary scores-table" width="100%">
             <thead>
               <tr>
-                <th></th>
+                <th rowspan="2" style="vertical-align: bootom">Round</th>
                 <th colspan=${teamScores.length}>Teams</th>
               </tr>
               <tr>
-                <th>Round</th>
-                ${teamScores.map((_, idx) => html`
-                  <th>${idx + 1}</th>
+                ${teamScores.map(teamScore => html`
+                  <th style=${Utils.teamStyle(teamScore.idx)}>
+                    ${teamScore.idx + 1}
+                  </th>
                 `)}
               </tr>
             </thead>
