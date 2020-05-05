@@ -49,7 +49,8 @@ type Player struct {
 // GameSettings holds all the data about the Fishbowl
 // game settings.
 type GameSettings struct {
-	rounds []api.RoundT
+	rounds      []api.RoundT
+	timerLength int
 }
 
 // Game holds all the data about the Fishbowl game.
@@ -78,10 +79,6 @@ type GameRoom struct {
 	game     *Game
 	settings *GameSettings
 }
-
-const (
-	gameTimerLength = 4
-)
 
 var (
 	validStateTransitions = map[string][]string{
@@ -247,6 +244,7 @@ func (h *Hub) createGame(
 				api.RoundSingleWord,
 				api.RoundCharades,
 			},
+			timerLength: 45,
 		},
 	}
 
@@ -543,7 +541,7 @@ func (h *Hub) startTurn(
 
 	game.numCardsGuessedInTurn = 0
 	game.lastCardGuessed = ""
-	game.timerLength = gameTimerLength + 1
+	game.timerLength = room.settings.timerLength + 1
 	game.currentServerTime = time.Now().UnixNano() / 1000000
 	if game.timer != nil {
 		game.timer.Stop()

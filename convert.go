@@ -32,6 +32,7 @@ func convertSettingsToAPISettings(settings *GameSettings) api.GameSettings {
 
 	return api.GameSettings{
 		Rounds: apiRounds,
+		TimerLength: settings.timerLength,
 	}
 }
 
@@ -43,5 +44,6 @@ func convertAPISettingsToSettings(apiSettings api.GameSettings) *GameSettings {
 
 	return &GameSettings{
 		rounds: rounds,
+		timerLength: apiSettings.TimerLength,
 	}
 }

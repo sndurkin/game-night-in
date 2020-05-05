@@ -49,6 +49,7 @@ export default class RoomScreen extends Component {
     this.openChangeSettings = this.openChangeSettings.bind(this);
     this.closeChangeSettings = this.closeChangeSettings.bind(this);
     this.renderRoundTableRow = this.renderRoundTableRow.bind(this);
+    this.onTimerChange = this.onTimerChange.bind(this);
     this.selectRound = this.selectRound.bind(this);
     this.removeRound = this.removeRound.bind(this);
     this.saveSettings = this.saveSettings.bind(this);
@@ -95,10 +96,15 @@ export default class RoomScreen extends Component {
 
   renderChangeSettingsDialog() {
     const { error } = this.state;
-    const { rounds } = this.settings;
+    const { rounds, timerLength } = this.settings;
 
     const header = html`
-      <button class="close-settings pseudo">✖</button>
+      <button
+        class="close-settings pseudo"
+        onClick=${this.closeChangeSettings}
+      >
+        ✖
+      </button>
     `;
 
     return html`
@@ -107,6 +113,16 @@ export default class RoomScreen extends Component {
           ${error && html`
             <span class="label error">${error}</span>
           `}
+          <h3>Timer length</h3>
+          <div style="display: flex; align-items: center">
+            <input
+              type="number"
+              style="width: 4em"
+              value=${timerLength}
+              onChange=${this.onTimerChange}
+            />
+            <div style="margin-left: 1em">seconds</div>
+          </div>
           <h3>Rounds</h3>
           <table class="primary rounds-table">
             <tbody>
@@ -268,7 +284,10 @@ export default class RoomScreen extends Component {
 
   renderSettingsSummary() {
     const { isRoomOwner } = this.props;
-    const { rounds } = this.settings;
+    const { rounds, timerLength } = this.settings;
+
+    const timerStr = `${timerLength}s timer`;
+    const roundsStr = `${rounds.length} round${rounds.length !== 1 ? 's' : ''}`;
 
     return html`
       <div class="settings">
@@ -278,9 +297,7 @@ export default class RoomScreen extends Component {
             <a onClick=${this.openChangeSettings}>Change</a>
           ` : null}
         </div>
-        <div>
-          <span>${rounds.length} round${rounds.length !== 1 ? 's' : ''}</span>
-        </div>
+        <div><span>${timerStr}, ${roundsStr}</span></div>
       </div >
     `;
   }
@@ -301,6 +318,20 @@ export default class RoomScreen extends Component {
         this.props.updateStoreData({ game: data.body });
         this.props.transitionToScreen(Constants.Screens.GAME);
         break;
+    }
+  }
+
+  onTimerChange(e) {
+    const newSettings = JSON.parse(JSON.stringify(this.settings));
+    try {
+      newSettings.timerLength = parseInt(e.target.value, 10);
+
+      this.setState({
+        changedSettings: newSettings,
+      });
+    }
+    catch (e) {
+      // Ignore
     }
   }
 

@@ -15,7 +15,8 @@ type Player struct {
 // GameSettings holds all the relevant information about a game's
 // settings.
 type GameSettings struct {
-	Rounds []string `json:"rounds"`
+	Rounds      []string `json:"rounds"`
+	TimerLength int      `json:"timerLength"`
 }
 
 // IncomingMessage holds any incoming websocket message.
