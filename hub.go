@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sndurkin/gaming-remotely/api"
+	"github.com/sndurkin/game-night-in/api"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the

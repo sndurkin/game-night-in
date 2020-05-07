@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/sndurkin/gaming-remotely/api"
+	"github.com/sndurkin/game-night-in/api"
 )
 
 // This function must be called with the mutex held.
@@ -14,7 +14,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 		var msg api.OutgoingMessage
 		msg.Event = api.Event[api.EventUpdatedRoom]
 		msg.Body = api.UpdatedRoomEvent{
-			Teams: convertTeamsToAPITeams(room.teams),
+			Teams:    convertTeamsToAPITeams(room.teams),
 			Settings: convertSettingsToAPISettings(room.settings),
 		}
 

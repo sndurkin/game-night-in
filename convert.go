@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/sndurkin/gaming-remotely/api"
+	"github.com/sndurkin/game-night-in/api"
 )
 
 func convertPlayersToAPIPlayers(players []*Player) []api.Player {
@@ -31,7 +31,7 @@ func convertSettingsToAPISettings(settings *GameSettings) api.GameSettings {
 	}
 
 	return api.GameSettings{
-		Rounds: apiRounds,
+		Rounds:      apiRounds,
 		TimerLength: settings.timerLength,
 	}
 }
@@ -43,7 +43,7 @@ func convertAPISettingsToSettings(apiSettings api.GameSettings) *GameSettings {
 	}
 
 	return &GameSettings{
-		rounds: rounds,
+		rounds:      rounds,
 		timerLength: apiSettings.TimerLength,
 	}
 }

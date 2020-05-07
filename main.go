@@ -5,14 +5,14 @@
 package main
 
 import (
-	"time"
-	"math/rand"
-	"os"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+	"os"
+	"time"
 
-	"github.com/sndurkin/gaming-remotely/api"
+	"github.com/sndurkin/game-night-in/api"
 )
 
 const (

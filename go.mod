@@ -1,4 +1,4 @@
-module github.com/sndurkin/gaming-remotely
+module github.com/sndurkin/game-night-in
 
 go 1.14
 
