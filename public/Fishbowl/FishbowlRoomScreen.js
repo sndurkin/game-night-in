@@ -1,8 +1,8 @@
 import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
-import ScreenWrapper from './ScreenWrapper.js';
-import Utils from './Utils.js';
-import Constants from './Constants.js';
+import ScreenWrapper from '../ScreenWrapper.js';
+import Utils from '../Utils.js';
+import Constants from '../Constants.js';
 
 const WORDS = [
   'apple', 'jump', 'brick', 'red', 'simple', 'potatoes', 'sack', 'lump', 'fowl', 'biscuit', 'cheese',
@@ -25,7 +25,7 @@ function getWords(num) {
   return words;
 }
 
-export default class RoomScreen extends Component {
+export default class FishbowlRoomScreen extends Component {
 
   constructor(...args) {
     super(...args);
@@ -316,7 +316,7 @@ export default class RoomScreen extends Component {
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({ game: data.body });
-        this.props.transitionToScreen(Constants.Screens.GAME);
+        this.props.transitionToScreen(Constants.Screens.FISHBOWL_GAME);
         break;
     }
   }

@@ -1,10 +1,10 @@
 import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
-import Utils from './Utils.js';
-import Constants from './Constants.js';
+import Utils from '../Utils.js';
+import Constants from '../Constants.js';
 
 
-export default class GameOverScreen extends Component {
+export default class FishbowlGameOverScreen extends Component {
 
   constructor(...args) {
     super(...args);
@@ -42,32 +42,28 @@ export default class GameOverScreen extends Component {
           <table class="primary scores-table" width="100%">
             <thead>
               <tr>
-                <th rowspan="2" style="vertical-align: bootom">Round</th>
-                <th colspan=${teamScores.length}>Teams</th>
+                <th rowspan="2" style="vertical-align: bottom">Team</th>
+                <th rowspan="2"></th>
+                <th colspan=${game.teamScoresByRound.length}>Rounds</th>
               </tr>
               <tr>
-                ${teamScores.map(teamScore => html`
-                  <th style=${Utils.teamStyle(teamScore.idx)}>
-                    ${teamScore.idx + 1}
-                  </th>
+                ${game.teamScoresByRound.map((_, idx) => html`
+                  <th>${idx + 1}</th>
                 `)}
               </tr>
             </thead>
             <tbody>
-              ${game.teamScoresByRound.map((roundScores, idx) => html`
+              ${teamScores.map(teamScore => html`
                 <tr>
-                  <td>${idx + 1}</td>
-                  ${teamScores.map(teamScore => html`
+                  <td style=${Utils.teamStyle(teamScore.idx)}>
+                    ${teamScore.idx + 1}
+                  </td>
+                  <td><b>${teamScore.score}</b></td>
+                  ${game.teamScoresByRound.map(roundScores => html`
                     <td>${roundScores[teamScore.idx]}</td>
                   `)}
                 </tr>
               `)}
-              <tr>
-                <td><b>Totals</b></td>
-                ${teamScores.map(teamScore => html`
-                  <td><b>${teamScore.score}</b></td>
-                `)}
-              </tr>
             </tbody>
           </table>
         </div>
@@ -78,7 +74,7 @@ export default class GameOverScreen extends Component {
   handleMessage(data, e) {
     switch (data.event) {
       case Constants.Events.UPDATED_ROOM:
-        this.props.transitionToScreen(Constants.Screens.ROOM);
+        this.props.transitionToScreen(Constants.Screens.FISHBOWL_ROOM);
         this.props.updateStoreData({
           teams: data.body.teams,
         });
@@ -153,10 +149,20 @@ export default class GameOverScreen extends Component {
     return html`
       <div class="confetti-ct">
         ${sortedConfettiStyles.map(s => html`
-          <div class="confetti" style="background: ${s.background}; width: ${s.width}px; height: ${s.height}px" />
+          <div class="confetti" style=${this.stylesToString(s)} />
         `)}
       </div>
     `;
+  }
+
+  stylesToString(styles) {
+    return Object.entries(styles).map(r => {
+      let rule = `${r[0]}: ${r[1]}`;
+      if (r[0] === 'height' || r[0] === 'width') {
+        rule = rule + 'px';
+      }
+      return rule;
+    }).join('; ');
   }
 
 }

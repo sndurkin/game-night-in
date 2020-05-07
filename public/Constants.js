@@ -3,9 +3,9 @@ export default {
     HOME: 'home',
     CREATE_GAME: 'create-game',
     JOIN_GAME: 'join-game',
-    ROOM: 'room',
-    GAME: 'game',
-    GAME_OVER: 'game-over',
+    FISHBOWL_ROOM: 'fishbowl-room',
+    FISHBOWL_GAME: 'fishbowl-game',
+    FISHBOWL_GAME_OVER: 'fishbowl-game-over',
   },
   Actions: {
     CREATE_GAME: 'create-game',

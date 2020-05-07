@@ -322,6 +322,7 @@ func (h *Hub) createGame(
 	var msg api.OutgoingMessage
 	msg.Event = api.Event[api.EventCreatedGame]
 	msg.Body = api.CreatedGameEvent{
+		GameType: room.gameType,
 		RoomCode: room.roomCode,
 		Team:     0,
 	}
