@@ -67,11 +67,12 @@ export default class CreateGameScreen extends Component {
       case Constants.Events.CREATED_GAME:
         localStorage.setItem(Constants.LocalStorage.ROOM_CODE, data.body.roomCode);
 
-        this.props.transitionToScreen(Constants.Screens.ROOM);
+        this.props.transitionToScreen(Constants.Screens.FISHBOWL_ROOM);
         this.props.updateStoreData({
           name: this.state.name,
           isRoomOwner: true,
           roomCode: data.body.roomCode,
+          gameType: data.body.gameType,
           teams: [
             [{ name: this.state.name, isRoomOwner: true }],
           ],

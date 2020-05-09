@@ -14,6 +14,7 @@ func (h *Hub) sendUpdatedGameMessages(room *GameRoom, justJoinedClient *Client) 
 		var msg api.OutgoingMessage
 		msg.Event = api.Event[api.EventUpdatedRoom]
 		msg.Body = api.UpdatedRoomEvent{
+			GameType: room.gameType,
 			Teams:    convertTeamsToAPITeams(room.teams),
 			Settings: convertSettingsToAPISettings(room.settings),
 		}

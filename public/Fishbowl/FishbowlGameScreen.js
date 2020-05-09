@@ -1,10 +1,10 @@
 import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
-import ScreenWrapper from './ScreenWrapper.js';
-import Constants from './Constants.js';
+import ScreenWrapper from '../ScreenWrapper.js';
+import Constants from '../Constants.js';
 
 
-export default class GameScreen extends Component {
+export default class FishbowlGameScreen extends Component {
 
   constructor(...args) {
     super(...args);
@@ -109,7 +109,7 @@ export default class GameScreen extends Component {
 
         this.props.updateStoreData({ game: game });
         if (game.state === Constants.States.GAME_OVER) {
-          this.props.transitionToScreen(Constants.Screens.GAME_OVER);
+          this.props.transitionToScreen(Constants.Screens.FISHBOWL_GAME_OVER);
         }
         break;
     }

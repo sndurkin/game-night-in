@@ -70,7 +70,7 @@ button.lone {
   color: #cc3000;
   border-color: #cc3000;
   border-style: dashed;
-  border-width: 0.1em 0 0 0.1em;
+  border-width: max(1px, 0.1em) 0 0 max(1px, 0.1em);
 }
 
 .room-code {
@@ -79,7 +79,7 @@ button.lone {
   color: #555;
   border-color: #555;
   border-style: dashed;
-  border-width: 0 0 0.1em 0.1em;
+  border-width: 0 0 max(1px, 0.1em) max(1px, 0.1em);
 }
 
 .screen {
@@ -274,7 +274,7 @@ label {
   height: 3em;
   line-height: 3em;
   font-weight: bold;
-  border-top: 1px solid #999;
+  border-top: max(1px, 0.1em) solid #999;
   margin: .25em 0;
   padding: .25em 0;
 }
@@ -368,8 +368,8 @@ h3.scores-table-title {
 
 .scores-table th {
   background-color: #999;
-  border-left: 1px solid #fff;
-  border-bottom: 1px solid #fff;
+  border-left: max(1px, 0.1em) solid #fff;
+  border-bottom: max(1px, 0.1em) solid #fff;
 }
 
 .scores-table th

@@ -3,9 +3,9 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import HomeScreen from './HomeScreen.js';
 import CreateGameScreen from './CreateGameScreen.js';
 import JoinGameScreen from './JoinGameScreen.js';
-import RoomScreen from './RoomScreen.js';
-import GameScreen from './GameScreen.js';
-import GameOverScreen from './GameOverScreen.js';
+import FishbowlRoomScreen from './Fishbowl/FishbowlRoomScreen.js';
+import FishbowlGameScreen from './Fishbowl/FishbowlGameScreen.js';
+import FishbowlGameOverScreen from './Fishbowl/FishbowlGameOverScreen.js';
 import Constants from './Constants.js';
 
 
@@ -41,12 +41,12 @@ class App extends Component {
         return this.createGameScreen;
       case Constants.Screens.JOIN_GAME:
         return this.joinGameScreen;
-      case Constants.Screens.ROOM:
-        return this.roomScreen;
-      case Constants.Screens.GAME:
-        return this.gameScreen;
-      case Constants.Screens.GAME_OVER:
-        return this.gameOverScreen;
+      case Constants.Screens.FISHBOWL_ROOM:
+        return this.fishbowlRoomScreen;
+      case Constants.Screens.FISHBOWL_GAME:
+        return this.fishbowlGameScreen;
+      case Constants.Screens.FISHBOWL_GAME_OVER:
+        return this.fishbowlGameOverScreen;
     }
 
     return null;
@@ -74,14 +74,14 @@ class App extends Component {
         ${screen === Constants.Screens.JOIN_GAME && html`
           <${JoinGameScreen} ref=${r => this.joinGameScreen = r} ...${sharedProps} />
         `}
-        ${screen === Constants.Screens.ROOM && html`
-          <${RoomScreen} ref=${r => this.roomScreen = r} ...${sharedProps} />
+        ${screen === Constants.Screens.FISHBOWL_ROOM && html`
+          <${FishbowlRoomScreen} ref=${r => this.fishbowlRoomScreen = r} ...${sharedProps} />
         `}
-        ${screen === Constants.Screens.GAME && html`
-          <${GameScreen} ref=${r => this.gameScreen = r} ...${sharedProps} />
+        ${screen === Constants.Screens.FISHBOWL_GAME && html`
+          <${FishbowlGameScreen} ref=${r => this.fishbowlGameScreen = r} ...${sharedProps} />
         `}
-        ${screen === Constants.Screens.GAME_OVER && html`
-          <${GameOverScreen} ref=${r => this.gameOverScreen = r} ...${sharedProps} />
+        ${screen === Constants.Screens.FISHBOWL_GAME_OVER && html`
+          <${FishbowlGameOverScreen} ref=${r => this.fishbowlGameOverScreen = r} ...${sharedProps} />
         `}
       </div>
     `;
@@ -100,7 +100,7 @@ class App extends Component {
   }
 }
 
-window.onload = function() {
+window.onload = function () {
   if (!window['WebSocket']) {
     document.open();
     document.write('<b>Your browser does not support WebSockets.</b>');
@@ -110,7 +110,7 @@ window.onload = function() {
 
   const protocol = document.location.protocol === 'https:' ? 'wss' : 'ws';
   conn = new WebSocket(protocol + '://' + document.location.host + '/ws');
-  conn.onclose = function(e) {
+  conn.onclose = function (e) {
     while (document.body.firstChild) {
       document.body.removeChild(document.body.firstChild);
     }

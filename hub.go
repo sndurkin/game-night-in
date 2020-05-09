@@ -1,10 +1,7 @@
-// Use of this source code is governed by a BSD-style
-// Copyright 2013 The Gorilla ebSocket Authors. All rights reserved.
-// license that can be found in the LICENSE file.
-
 package main
 
 import (
+	"errors"
 	"encoding/json"
 	"log"
 	"math/rand"
@@ -73,11 +70,12 @@ type Game struct {
 
 // GameRoom holds the data about a game room.
 type GameRoom struct {
-	roomCode string
-	gameType string
-	teams    [][]*Player
-	game     *Game
-	settings *GameSettings
+	roomCode            string
+	gameType            string
+	lastInteractionTime time.Time
+	teams               [][]*Player
+	game                *Game
+	settings            *GameSettings
 }
 
 var (
@@ -127,6 +125,31 @@ func (h *Hub) run() {
 		case clientMessage := <-h.message:
 			h.handleIncomingMessage(clientMessage)
 		}
+	}
+}
+
+func (h *Hub) runCleanup() {
+	for now := range time.Tick(time.Hour) {
+		h.Lock()
+
+		roomCodes := []string{}
+		for roomCode, room := range h.rooms {
+			expiryTime := room.lastInteractionTime.Add(
+				time.Minute * time.Duration(30))
+			if now.After(expiryTime) {
+				roomCodes = append(roomCodes, roomCode)
+			}
+		}
+
+		if len(roomCodes) > 0 {
+			log.Printf("Cleaning up %d old rooms\n", len(roomCodes))
+
+			for _, roomCode := range roomCodes {
+				delete(h.rooms, roomCode)
+			}
+		}
+
+		h.Unlock()
 	}
 }
 
@@ -225,6 +248,36 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 	}
 }
 
+func (h *Hub) performRoomChecks(
+	player *Player,
+	playerMustBeRoomOwner bool,
+	playerMustBeCurrentPlayer bool,
+) (*GameRoom, error) {
+	room := player.room
+	if room == nil {
+		return nil, errors.New("you are not in a game")
+	}
+
+	if _, ok := h.rooms[room.roomCode]; !ok {
+		return nil, errors.New("this game no longer exists")
+	}
+
+	room.lastInteractionTime = time.Now()
+
+	if playerMustBeRoomOwner && !player.isRoomOwner {
+		return nil, errors.New("you are not the game owner")
+	}
+
+	if playerMustBeCurrentPlayer {
+		currentPlayer := h.getCurrentPlayer(room)
+		if currentPlayer.name != player.name {
+			return nil, errors.New("you are not the current player")
+		}
+	}
+
+	return room, nil
+}
+
 func (h *Hub) createGame(
 	clientMessage *ClientMessage,
 	req api.CreateGameRequest,
@@ -234,6 +287,7 @@ func (h *Hub) createGame(
 	room := &GameRoom{
 		gameType: req.GameType,
 		roomCode: h.generateUniqueRoomCode(),
+		lastInteractionTime: time.Now(),
 		teams:    make([][]*Player, 2),
 		game: &Game{
 			state: "waiting-room",
@@ -268,6 +322,7 @@ func (h *Hub) createGame(
 	var msg api.OutgoingMessage
 	msg.Event = api.Event[api.EventCreatedGame]
 	msg.Body = api.CreatedGameEvent{
+		GameType: room.gameType,
 		RoomCode: room.roomCode,
 		Team:     0,
 	}
@@ -361,9 +416,9 @@ func (h *Hub) submitWords(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
+	room, err := h.performRoomChecks(playerClient, false, false)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -381,14 +436,9 @@ func (h *Hub) changeSettings(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
-		return
-	}
-
-	if !playerClient.isRoomOwner {
-		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+	room, err := h.performRoomChecks(playerClient, true, false)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -409,9 +459,9 @@ func (h *Hub) movePlayer(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
+	room, err := h.performRoomChecks(playerClient, true, false)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -438,9 +488,9 @@ func (h *Hub) addTeam(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
+	room, err := h.performRoomChecks(playerClient, true, false)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -458,14 +508,9 @@ func (h *Hub) startGame(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
-		return
-	}
-
-	if !playerClient.isRoomOwner {
-		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+	room, err := h.performRoomChecks(playerClient, true, false)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -518,15 +563,9 @@ func (h *Hub) startTurn(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
-		return
-	}
-
-	currentPlayer := h.getCurrentPlayer(room)
-	if currentPlayer.name != playerClient.name {
-		h.sendErrorMessage(clientMessage, "You are not the current player.")
+	room, err := h.performRoomChecks(playerClient, false, true)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -597,15 +636,9 @@ func (h *Hub) changeCard(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
-		return
-	}
-
-	currentPlayer := h.getCurrentPlayer(room)
-	if currentPlayer.name != playerClient.name {
-		h.sendErrorMessage(clientMessage, "You are not the current player.")
+	room, err := h.performRoomChecks(playerClient, false, true)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 
@@ -681,14 +714,9 @@ func (h *Hub) rematch(
 	defer h.Unlock()
 
 	playerClient := h.playerClients[clientMessage.client]
-	room := playerClient.room
-	if room == nil {
-		h.sendErrorMessage(clientMessage, "You are not in a game.")
-		return
-	}
-
-	if !playerClient.isRoomOwner {
-		h.sendErrorMessage(clientMessage, "You are not the game owner.")
+	room, err := h.performRoomChecks(playerClient, true, false)
+	if err != nil {
+		h.sendErrorMessage(clientMessage, err.Error())
 		return
 	}
 

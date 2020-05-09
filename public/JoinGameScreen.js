@@ -90,10 +90,11 @@ export default class JoinGameScreen extends Component {
       case Constants.Events.UPDATED_ROOM:
         this.props.updateStoreData({
           ...sharedProps,
+          gameType: data.body.gameType,
           settings: data.body.settings,
           teams: data.body.teams,
         });
-        this.props.transitionToScreen(Constants.Screens.ROOM);
+        this.props.transitionToScreen(Constants.Screens.FISHBOWL_ROOM);
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({
@@ -101,7 +102,7 @@ export default class JoinGameScreen extends Component {
           teams: data.body.teams,
           game: data.body,
         });
-        this.props.transitionToScreen(Constants.Screens.GAME);
+        this.props.transitionToScreen(Constants.Screens.FISHBOWL_GAME);
         break;
     }
   }

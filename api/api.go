@@ -93,6 +93,7 @@ type OutgoingMessage struct {
 // when they create a new game room.
 type CreatedGameEvent struct {
 	RoomCode string `json:"roomCode"`
+	GameType string `json:"gameType"`
 	Team     int    `json:"team"`
 }
 
@@ -100,6 +101,7 @@ type CreatedGameEvent struct {
 // in a room whenever a change has been made to it (e.g. player joining,
 // player switching teams, etc).
 type UpdatedRoomEvent struct {
+	GameType string       `json:"gameType"`
 	Teams    [][]Player   `json:"teams"`
 	Settings GameSettings `json:"settings"`
 }
