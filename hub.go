@@ -40,61 +40,24 @@ type Player struct {
 	name        string
 	room        *GameRoom
 	isRoomOwner bool
-	words       []string
+
+	settings    *PlayerSettings
 }
 
-// GameSettings holds all the data about the Fishbowl
-// game settings.
-type GameSettings struct {
-	rounds      []api.RoundT
-	timerLength int
-}
+// PlayerSettings holds game-specific data about a particular player.
+type PlayerSettings struct {}
 
-// Game holds all the data about the Fishbowl game.
-type Game struct {
-	state                 string
-	turnJustStarted       bool
-	cardsInRound          []string
-	currentServerTime     int64
-	timer                 *time.Timer
-	timerLength           int
-	lastCardGuessed       string
-	totalNumCards         int
-	numCardsGuessedInTurn int
-	teamScoresByRound     [][]int
-	winningTeam           *int
-	currentRound          int   // 0, 1, 2
-	currentPlayers        []int // [ team0PlayerIdx, team1PlayerIdx ]
-	currentlyPlayingTeam  int   // 0, 1, ...
-}
+// Game holds the game-specific data and logic.
+type Game struct {}
 
 // GameRoom holds the data about a game room.
 type GameRoom struct {
 	roomCode            string
 	gameType            string
 	lastInteractionTime time.Time
-	teams               [][]*Player
 	game                *Game
 	settings            *GameSettings
 }
-
-var (
-	validStateTransitions = map[string][]string{
-		"waiting-room": {
-			"turn-start",
-		},
-		"turn-start": {
-			"turn-active",
-		},
-		"turn-active": {
-			"turn-start",
-			"game-over",
-		},
-		"game-over": {
-			"waiting-room",
-		},
-	}
-)
 
 func newHub() *Hub {
 	return &Hub{
@@ -128,7 +91,7 @@ func (h *Hub) run() {
 	}
 }
 
-func (h *Hub) runCleanup() {
+func (h *Hub) runRoomCleanup() {
 	for now := range time.Tick(time.Hour) {
 		h.Lock()
 
@@ -166,7 +129,20 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 
 	actionType, ok := api.ActionLookup[incomingMessage.Action]
 	if !ok {
-		log.Fatalf("invalid action: %s\n", incomingMessage.Action)
+		h.Lock()
+
+		playerClient := h.playerClients[clientMessage.client]
+
+		if playerClient.room == nil {
+			log.Fatalf("invalid action: %s\n", incomingMessage.Action)
+			h.Unlock()
+			return
+		}
+
+		h.Unlock()
+		playerClient.room.game.HandleIncomingMessage(playerClient,
+			incomingMessage,
+		)
 		return
 	}
 
@@ -185,29 +161,6 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 			return
 		}
 		h.joinGame(clientMessage, req)
-	case api.ActionAddTeam:
-		var req api.AddTeamRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-			return
-		}
-		h.addTeam(clientMessage, req)
-	case api.ActionRemoveTeam:
-		// TODO
-	case api.ActionMovePlayer:
-		var req api.MovePlayerRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-			return
-		}
-		h.movePlayer(clientMessage, req)
-	case api.ActionSubmitWords:
-		var req api.SubmitWordsRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-			return
-		}
-		h.submitWords(clientMessage, req)
 	case api.ActionChangeSettings:
 		var req api.ChangeSettingsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -222,20 +175,6 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 			return
 		}
 		h.startGame(clientMessage, req)
-	case api.ActionStartTurn:
-		var req api.StartTurnRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-			return
-		}
-		h.startTurn(clientMessage, req)
-	case api.ActionChangeCard:
-		var req api.ChangeCardRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-			return
-		}
-		h.changeCard(clientMessage, req)
 	case api.ActionRematch:
 		var req api.RematchRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -406,26 +345,6 @@ func (h *Hub) joinGame(clientMessage *ClientMessage, req api.JoinGameRequest) {
 	h.sendUpdatedGameMessages(room, nil)
 }
 
-func (h *Hub) submitWords(
-	clientMessage *ClientMessage,
-	req api.SubmitWordsRequest,
-) {
-	log.Printf("Submit words request: %s\n", req.Words)
-
-	h.Lock()
-	defer h.Unlock()
-
-	playerClient := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, false, false)
-	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
-		return
-	}
-
-	playerClient.words = req.Words
-	h.sendUpdatedGameMessages(room, nil)
-}
-
 func (h *Hub) changeSettings(
 	clientMessage *ClientMessage,
 	req api.ChangeSettingsRequest,
@@ -443,58 +362,6 @@ func (h *Hub) changeSettings(
 	}
 
 	room.settings = convertAPISettingsToSettings(req.Settings)
-	h.sendUpdatedGameMessages(room, nil)
-}
-
-func (h *Hub) movePlayer(
-	clientMessage *ClientMessage,
-	req api.MovePlayerRequest,
-) {
-	log.Printf("Move player request: %s (%d -> %d)\n", req.PlayerName,
-		req.FromTeam, req.ToTeam)
-
-	var msg api.OutgoingMessage
-
-	h.Lock()
-	defer h.Unlock()
-
-	playerClient := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, true, false)
-	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
-		return
-	}
-
-	if req.FromTeam >= len(room.teams) || req.ToTeam >= len(room.teams) {
-		msg.Event = "error"
-		msg.Error = "The team indexes are invalid."
-		h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
-		return
-	}
-
-	player := h.removePlayerFromTeam(room, req.FromTeam, req.PlayerName)
-	room.teams[req.ToTeam] = append(room.teams[req.ToTeam], player)
-
-	h.sendUpdatedGameMessages(room, nil)
-}
-
-func (h *Hub) addTeam(
-	clientMessage *ClientMessage,
-	req api.AddTeamRequest,
-) {
-	log.Printf("Add team request\n")
-
-	h.Lock()
-	defer h.Unlock()
-
-	playerClient := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, true, false)
-	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
-		return
-	}
-
-	room.teams = append(room.teams, []*Player{})
 	h.sendUpdatedGameMessages(room, nil)
 }
 
@@ -551,157 +418,6 @@ func (h *Hub) reshuffleCardsForRound(room *GameRoom) {
 	rand.Shuffle(len(game.cardsInRound), func(i, j int) {
 		arr[i], arr[j] = arr[j], arr[i]
 	})
-}
-
-func (h *Hub) startTurn(
-	clientMessage *ClientMessage,
-	req api.StartTurnRequest,
-) {
-	log.Printf("Start turn request\n")
-
-	h.Lock()
-	defer h.Unlock()
-
-	playerClient := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, false, true)
-	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
-		return
-	}
-
-	game := room.game
-
-	if !h.validateStateTransition(game.state, "turn-active") {
-		h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
-		return
-	}
-	game.turnJustStarted = true
-	game.state = "turn-active"
-
-	game.numCardsGuessedInTurn = 0
-	game.lastCardGuessed = ""
-	game.timerLength = room.settings.timerLength + 1
-	game.currentServerTime = time.Now().UnixNano() / 1000000
-	if game.timer != nil {
-		game.timer.Stop()
-	}
-	game.timer = time.NewTimer(time.Second * time.Duration(game.timerLength))
-
-	// Wait for timer to finish in an asynchronous goroutine
-	go func() {
-		// Block until timer finishes. When it is done, it sends a message
-		// on the channel timer.C. No other code in
-		// this goroutine is executed until that happens.
-		<-game.timer.C
-
-		log.Println("Timer expired, waiting on lock")
-
-		h.Lock()
-		defer h.Unlock()
-
-		log.Println(" - lock obtained")
-
-		game.timer = nil
-
-		log.Printf("Game state when timer ended: %s\n", game.state)
-		if !h.validateStateTransition(game.state, "turn-start") {
-			if game.state == "turn-start" || game.state == "game-over" {
-				// Round or game finished before the player's turn timer expired,
-				// so do nothing.
-				return
-			}
-
-			log.Fatalf("Game was not in correct state when turn timer expired: %s", game.state)
-			return
-		}
-
-		game.turnJustStarted = false
-		game.state = "turn-start"
-		h.moveToNextPlayerAndTeam(room)
-
-		log.Printf("Sending updated game message after timer expired\n")
-		h.sendUpdatedGameMessages(room, nil)
-	}()
-
-	h.sendUpdatedGameMessages(room, nil)
-}
-
-func (h *Hub) changeCard(
-	clientMessage *ClientMessage,
-	req api.ChangeCardRequest,
-) {
-	log.Printf("Change card request: %s\n", req.ChangeType)
-
-	h.Lock()
-	defer h.Unlock()
-
-	playerClient := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, false, true)
-	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
-		return
-	}
-
-	game := room.game
-	if game.state != "turn-active" {
-		// Ignore, the turn is probably over.
-		return
-	}
-
-	game.turnJustStarted = false
-	if req.ChangeType == "correct" {
-		// Increment score for current team and the current turn.
-		game.teamScoresByRound[game.currentRound][game.currentlyPlayingTeam]++
-		game.numCardsGuessedInTurn++
-
-		game.lastCardGuessed = game.cardsInRound[0]
-		game.cardsInRound = game.cardsInRound[1:]
-
-		if len(game.cardsInRound) == 0 {
-			if game.timer != nil {
-				game.timer.Stop()
-			}
-
-			game.currentRound++
-			if game.currentRound < len(room.settings.rounds) {
-				// Round over, moving to next round
-				game.state = "turn-start"
-
-				h.reshuffleCardsForRound(room)
-				h.moveToNextPlayerAndTeam(room)
-
-				// Each round should start with a different team.
-				//
-				// TODO: The teams should be re-ordered based on score.
-				game.currentlyPlayingTeam = getRandomNumberInRange(0,
-					len(room.teams)-1)
-			} else {
-				game.state = "game-over" // TODO: update to use constant from api.go
-
-				totalScores := make([]int, len(room.teams))
-				for _, scoresByTeam := range game.teamScoresByRound {
-					for team, score := range scoresByTeam {
-						totalScores[team] += score
-					}
-				}
-
-				var teamWithMax, max int
-				for team, totalScore := range totalScores {
-					if totalScore > max {
-						max = totalScore
-						teamWithMax = team
-					}
-				}
-
-				game.winningTeam = &teamWithMax
-			}
-		}
-	} else {
-		// Skip this card, push it to the end
-		game.cardsInRound = append(game.cardsInRound[1:], game.cardsInRound[0])
-	}
-
-	h.sendUpdatedGameMessages(room, nil)
 }
 
 func (h *Hub) rematch(
@@ -835,27 +551,6 @@ func (h *Hub) getPlayerInRoom(room *GameRoom, name string) *Player {
 			if player.name == name {
 				return player
 			}
-		}
-	}
-
-	return nil
-}
-
-// This function must be called with the mutex held.
-func (h *Hub) removePlayerFromTeam(
-	room *GameRoom,
-	fromTeam int,
-	playerName string,
-) *Player {
-	players := room.teams[fromTeam]
-	for idx, player := range players {
-		if player.name == playerName {
-			player := players[idx]
-			room.teams[fromTeam] = append(
-				players[:idx],
-				players[idx+1:]...,
-			)
-			return player
 		}
 	}
 

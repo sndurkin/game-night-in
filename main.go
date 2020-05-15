@@ -59,7 +59,7 @@ func main() {
 
 	hub := newHub()
 	go hub.run()
-	go hub.runCleanup()
+	go hub.runRoomCleanup()
 
 	port := os.Getenv("PORT")
 	if port == "" {
