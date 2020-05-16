@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/sndurkin/game-night-in/hub"
+	"github.com/sndurkin/game-night-in/models"
 	"github.com/sndurkin/game-night-in/api"
 )
 
@@ -58,7 +58,7 @@ func main() {
 
 	api.Init()
 
-	h := hub.NewHub()
+	h := newHub()
 	go h.run()
 	go h.runRoomCleanup()
 

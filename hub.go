@@ -1,4 +1,4 @@
-package hub
+package main
 
 import (
 	"errors"
@@ -11,16 +11,17 @@ import (
 	"time"
 
 	"github.com/sndurkin/game-night-in/api"
+	"github.com/sndurkin/game-night-in/models"
 	"github.com/sndurkin/game-night-in/fishbowl"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
-	sync.RWMutex
+	mutex sync.RWMutex
 
 	// Map of connected client to Player
-	playerClients map[*Client]*Player
+	playerClients map[*Client]*models.Player
 
 	// Map of room code to GameRoom
 	rooms map[string]*GameRoom
@@ -35,46 +36,22 @@ type Hub struct {
 	unregister chan *Client
 }
 
-// Player holds all the data about a player.
-type Player struct {
-	client      *Client
-	name        string
-	room        *GameRoom
-	isRoomOwner bool
-
-	settings    *PlayerSettings
-}
-
-// PlayerSettings holds game-specific data about a particular player.
-type PlayerSettings struct {}
-
-// Game holds the game-specific data and logic.
-type Game struct {}
-
-// GameRoom holds the data about a game room.
-type GameRoom struct {
-	roomCode            string
-	gameType            string
-	lastInteractionTime time.Time
-	game                *Game
-}
-
-// NewHub creates a new Hub instance which manages all incoming
+// newHub creates a new Hub instance which manages all incoming
 // websocket messages.
-func NewHub() *Hub {
+func newHub() *Hub {
 	return &Hub{
-		playerClients: make(map[*Client]*Player),
-		rooms:         make(map[string]*GameRoom),
+		playerClients: make(map[*Client]*models.Player),
+		rooms:         make(map[string]*models.GameRoom),
 		message:       make(chan *ClientMessage),
 		register:      make(chan *Client),
 		unregister:    make(chan *Client),
 	}
 }
 
-func (h *Hub) newGame(gameType string) *Game {
+func (h *Hub) newGame(gameType string, room *GameRoom) *Game {
 	switch (gameType) {
 	case "fishbowl":
-		return fishbowl.NewGame()
+		return fishbowl.NewGame(room, &h.mutex)
 	}
 
 	return nil
@@ -85,7 +62,7 @@ func (h *Hub) run() {
 		select {
 		case client := <-h.register:
 			h.Lock()
-			h.playerClients[client] = &Player{
+			h.playerClients[client] = &models.Player{
 				client: client,
 			}
 			h.Unlock()
@@ -150,7 +127,7 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 		}
 
 		h.Unlock()
-		player.room.game.HandleIncomingMessage(player, incomingMessage)
+		player.room.game.HandleIncomingMessage(player, incomingMessage, body)
 		return
 	}
 
@@ -191,7 +168,7 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 }
 
 func (h *Hub) performRoomChecks(
-	player *Player,
+	player *models.Player,
 	playerMustBeRoomOwner bool,
 	playerMustBeCurrentPlayer bool,
 ) (*GameRoom, error) {
@@ -221,7 +198,7 @@ func (h *Hub) performRoomChecks(
 }
 
 func (h *Hub) createGame(
-	player *Player,
+	player *models.Player,
 	req api.CreateGameRequest,
 ) {
 	log.Printf("Create game request: %s\n", req.Name)
@@ -230,8 +207,8 @@ func (h *Hub) createGame(
 		gameType: req.GameType,
 		roomCode: h.generateUniqueRoomCode(),
 		lastInteractionTime: time.Now(),
-		game: h.newGame(req.GameType),
 	}
+	room.game = h.newGame(req.GameType, room),
 
 	h.Lock()
 	defer h.Unlock()
@@ -411,7 +388,7 @@ func (h *Hub) sendOutgoingMessages(
 }
 
 // This function must be called with the mutex held.
-func (h *Hub) getPlayerInRoom(room *GameRoom, name string) *Player {
+func (h *Hub) getPlayerInRoom(room *GameRoom, name string) *models.Player {
 	for _, players := range room.teams {
 		for _, player := range players {
 			if player.name == name {
