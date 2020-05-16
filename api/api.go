@@ -129,7 +129,6 @@ const (
 	ActionInvalid ActionT = iota
 	ActionCreateGame
 	ActionJoinGame
-	ActionChangeSettings
 	ActionStartGame
 	ActionRematch
 )
@@ -148,7 +147,6 @@ var (
 		ActionInvalid:        "invalid action",
 		ActionCreateGame:     "create-game",
 		ActionJoinGame:       "join-game",
-		ActionChangeSettings: "change-settings",
 		ActionStartGame:      "start-game",
 		ActionRematch:        "rematch",
 	}

@@ -2,7 +2,7 @@ package main
 
 import "math/rand"
 
-func stringInSlice(arr []string, val string) bool {
+func StringInSlice(arr []string, val string) bool {
 	for _, s := range arr {
 		if s == val {
 			return true
@@ -12,7 +12,7 @@ func stringInSlice(arr []string, val string) bool {
 	return false
 }
 
-func getRandomNumberInRange(min, max int) int {
+func GetRandomNumberInRange(min, max int) int {
 	if min == max {
 		return min
 	}

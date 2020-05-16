@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sndurkin/game-night-in/hub"
 	"github.com/sndurkin/game-night-in/api"
 )
 
@@ -57,9 +58,9 @@ func main() {
 
 	api.Init()
 
-	hub := newHub()
-	go hub.run()
-	go hub.runRoomCleanup()
+	h := hub.NewHub()
+	go h.run()
+	go h.runRoomCleanup()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -72,7 +73,7 @@ func main() {
 	http.Handle("/public/", http.StripPrefix("/public/", fs))
 
 	http.HandleFunc("/ws", logRoute(func(w http.ResponseWriter, r *http.Request) {
-		serveWs(hub, w, r)
+		serveWs(h, w, r)
 	}))
 
 	addr := fmt.Sprintf(":%s", port)

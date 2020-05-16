@@ -9,6 +9,7 @@ const (
 	ActionAddTeam
 	ActionRemoveTeam
 	ActionMovePlayer
+	ActionChangeSettings
 	ActionStartTurn
 	ActionSubmitWords
 	ActionChangeCard
@@ -27,6 +28,7 @@ var (
 		ActionAddTeam:        "add-team",
 		ActionRemoveTeam:     "remove-team",
 		ActionMovePlayer:     "move-player",
+		ActionChangeSettings: "change-settings",
 		ActionStartTurn:      "start-turn",
 		ActionSubmitWords:    "submit-words",
 		ActionChangeCard:     "change-card",
