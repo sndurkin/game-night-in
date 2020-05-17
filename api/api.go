@@ -35,6 +35,9 @@ type OutgoingMessage struct {
 	Body  interface{} `json:"body"`
 }
 
+// UpdatedGameEvent
+type UpdatedGameEvent struct {}
+
 const (
 	// General game actions
 	ActionInvalid ActionT = iota

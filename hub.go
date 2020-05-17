@@ -4,7 +4,6 @@ import (
 	"errors"
 	"encoding/json"
 	"log"
-	"math/rand"
 	"net"
 	"strconv"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/sndurkin/game-night-in/api"
 	"github.com/sndurkin/game-night-in/models"
 	"github.com/sndurkin/game-night-in/fishbowl"
+	"github.com/sndurkin/game-night-in/util"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the
@@ -24,7 +24,7 @@ type Hub struct {
 	playerClients map[*Client]*models.Player
 
 	// Map of room code to GameRoom
-	rooms map[string]*GameRoom
+	rooms map[string]*models.GameRoom
 
 	// Inbound messages from the clients.
 	message chan *ClientMessage
@@ -48,7 +48,7 @@ func newHub() *Hub {
 	}
 }
 
-func (h *Hub) newGame(gameType string, room *GameRoom) *Game {
+func (h *Hub) newGame(gameType string, room *models.GameRoom) interface{} {
 	switch (gameType) {
 	case "fishbowl":
 		return fishbowl.NewGame(room, &h.mutex)
@@ -61,18 +61,18 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.Lock()
+			h.mutex.Lock()
 			h.playerClients[client] = &models.Player{
-				client: client,
+				Client: client,
 			}
-			h.Unlock()
+			h.mutex.Unlock()
 		case client := <-h.unregister:
-			h.Lock()
+			h.mutex.Lock()
 			if _, ok := h.playerClients[client]; ok {
 				delete(h.playerClients, client)
 				close(client.send)
 			}
-			h.Unlock()
+			h.mutex.Unlock()
 		case clientMessage := <-h.message:
 			h.handleIncomingMessage(clientMessage)
 		}
@@ -81,11 +81,11 @@ func (h *Hub) run() {
 
 func (h *Hub) runRoomCleanup() {
 	for now := range time.Tick(time.Hour) {
-		h.Lock()
+		h.mutex.Lock()
 
 		roomCodes := []string{}
 		for roomCode, room := range h.rooms {
-			expiryTime := room.lastInteractionTime.Add(
+			expiryTime := room.LastInteractionTime.Add(
 				time.Minute * time.Duration(30))
 			if now.After(expiryTime) {
 				roomCodes = append(roomCodes, roomCode)
@@ -100,7 +100,7 @@ func (h *Hub) runRoomCleanup() {
 			}
 		}
 
-		h.Unlock()
+		h.mutex.Unlock()
 	}
 }
 
@@ -115,23 +115,28 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 		return
 	}
 
-	h.Lock()
+	h.mutex.Lock()
 	player := h.playerClients[clientMessage.client]
 
 	actionType, ok := api.ActionLookup[incomingMessage.Action]
 	if !ok {
-		if player.room == nil {
+		if player.Room == nil {
 			log.Fatalf("invalid action: %s\n", incomingMessage.Action)
-			h.Unlock()
+			h.mutex.Unlock()
 			return
 		}
 
-		h.Unlock()
-		player.room.game.HandleIncomingMessage(player, incomingMessage, body)
+		h.mutex.Unlock()
+		player.Room.Game.HandleIncomingMessage(
+			player,
+			incomingMessage,
+			body,
+			h.sendOutgoingMessages,
+		)
 		return
 	}
 
-	h.Unlock()
+	h.mutex.Unlock()
 
 	switch actionType {
 	case api.ActionCreateGame:
@@ -171,19 +176,19 @@ func (h *Hub) performRoomChecks(
 	player *models.Player,
 	playerMustBeRoomOwner bool,
 	playerMustBeCurrentPlayer bool,
-) (*GameRoom, error) {
-	room := player.room
+) (*models.GameRoom, error) {
+	room := player.Room
 	if room == nil {
 		return nil, errors.New("you are not in a game")
 	}
 
-	if _, ok := h.rooms[room.roomCode]; !ok {
+	if _, ok := h.rooms[room.RoomCode]; !ok {
 		return nil, errors.New("this game no longer exists")
 	}
 
-	room.lastInteractionTime = time.Now()
+	room.LastInteractionTime = time.Now()
 
-	if playerMustBeRoomOwner && !player.isRoomOwner {
+	if playerMustBeRoomOwner && !player.IsRoomOwner {
 		return nil, errors.New("you are not the game owner")
 	}
 	/*
@@ -203,32 +208,32 @@ func (h *Hub) createGame(
 ) {
 	log.Printf("Create game request: %s\n", req.Name)
 
-	room := &GameRoom{
-		gameType: req.GameType,
-		roomCode: h.generateUniqueRoomCode(),
-		lastInteractionTime: time.Now(),
+	room := &models.GameRoom{
+		GameType: req.GameType,
+		RoomCode: h.generateUniqueRoomCode(),
+		LastInteractionTime: time.Now(),
 	}
-	room.game = h.newGame(req.GameType, room),
+	room.Game = h.newGame(req.GameType, room).(*models.Game)
 
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 
-	h.rooms[room.roomCode] = room
+	h.rooms[room.RoomCode] = room
 	log.Printf("%+v\n", h.rooms)
 
-	player.name = req.Name
-	player.room = room
-	player.isRoomOwner = true
+	player.Name = req.Name
+	player.Room = room
+	player.IsRoomOwner = true
 
-	room.game.AddPlayer(player)
+	room.Game.AddPlayer(player)
 }
 
 func (h *Hub) generateUniqueRoomCode() string {
-	h.RLock()
-	defer h.RUnlock()
+	h.mutex.RLock()
+	defer h.mutex.RUnlock()
 
 	for {
-		newRoomCode := strconv.Itoa(getRandomNumberInRange(1000, 9999))
+		newRoomCode := strconv.Itoa(util.GetRandomNumberInRange(1000, 9999))
 		foundDuplicate := false
 		for roomCode := range h.rooms {
 			if newRoomCode == roomCode {
@@ -243,22 +248,24 @@ func (h *Hub) generateUniqueRoomCode() string {
 	}
 }
 
-func (h *Hub) joinGame(clientMessage *ClientMessage, req api.JoinGameRequest) {
+func (h *Hub) joinGame(player *models.Player, req api.JoinGameRequest) {
 	log.Printf("Join game request: %s for %s\n", req.Name, req.RoomCode)
 
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 
 	room, ok := h.rooms[req.RoomCode]
 	if !ok {
-		h.sendErrorMessage(clientMessage, "This room code does not exist.")
+		h.sendErrorMessage(player, "This room code does not exist.")
 		return
 	}
 
 	matchedPlayer := h.getPlayerInRoom(room, req.Name)
 	if matchedPlayer != nil {
-		playerAddr := matchedPlayer.client.conn.RemoteAddr().(*net.TCPAddr)
-		reqAddr := clientMessage.client.conn.RemoteAddr().(*net.TCPAddr)
+		matchedPlayerClient := matchedPlayer.Client.(*Client)
+		playerClient := player.Client.(*Client)
+		playerAddr := matchedPlayerClient.conn.RemoteAddr().(*net.TCPAddr)
+		reqAddr := playerClient.conn.RemoteAddr().(*net.TCPAddr)
 
 		if reqAddr.IP.String() != playerAddr.IP.String() {
 			log.Printf("Client with IP %s rejoining with same name as client with IP %s\n",
@@ -270,97 +277,80 @@ func (h *Hub) joinGame(clientMessage *ClientMessage, req api.JoinGameRequest) {
 			*/
 		}
 
-		if matchedPlayer.client != clientMessage.client {
-			matchedPlayer.client.conn.Close()
-			delete(h.playerClients, matchedPlayer.client)
-			matchedPlayer.client = clientMessage.client
+		if matchedPlayerClient != playerClient {
+			matchedPlayerClient.conn.Close()
+			delete(h.playerClients, matchedPlayerClient)
+			matchedPlayer.Client = playerClient
 		}
-		h.playerClients[clientMessage.client] = matchedPlayer
-		h.sendUpdatedGameMessages(room, clientMessage.client)
+		h.playerClients[playerClient] = matchedPlayer
+		room.Game.Join(matchedPlayer, false, req, h.sendOutgoingMessages)
 		return
 	}
 
-	game := room.game
-	if game.state != "waiting-room" {
-		h.sendErrorMessage(clientMessage,
-			"You cannot join a game that has already started.")
-		return
-	}
-
-	// Update the Player instance with the room and chosen name.
-	player := h.playerClients[clientMessage.client]
-	player.name = req.Name
-	player.room = room
-	player.isRoomOwner = false
-	player.words = []string{}
-
-	room.teams[0] = append(room.teams[0], player)
-
-	h.sendUpdatedGameMessages(room, nil)
+	room.Game.Join(player, true, req, h.sendOutgoingMessages)
 }
 
 func (h *Hub) startGame(
-	clientMessage *ClientMessage,
+	player *models.Player,
 	req api.StartGameRequest,
 ) {
 	log.Printf("Start game request\n")
 
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 
-	player := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, true, false)
+	room, err := h.performRoomChecks(player, true, false)
 	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
+		h.sendErrorMessage(player, err.Error())
 		return
 	}
 
-	room.game.Start()
+	room.Game.Start(player, h.sendOutgoingMessages)
 }
 
 func (h *Hub) rematch(
-	clientMessage *ClientMessage,
+	player *models.Player,
 	req api.RematchRequest,
 ) {
 	log.Printf("Rematch request\n")
 
-	h.Lock()
-	defer h.Unlock()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 
-	player := h.playerClients[clientMessage.client]
-	room, err := h.performRoomChecks(playerClient, true, false)
+	room, err := h.performRoomChecks(player, true, false)
 	if err != nil {
-		h.sendErrorMessage(clientMessage, err.Error())
+		h.sendErrorMessage(player, err.Error())
 		return
 	}
 
-	game.Rematch(playerClient)
+	room.Game.Rematch(player, h.sendOutgoingMessages)
 }
 
 // This function must be called with the mutex held.
-func (h *Hub) sendErrorMessage(clientMessage *ClientMessage, err string) {
+func (h *Hub) sendErrorMessage(player *models.Player, err string) {
 	var msg api.OutgoingMessage
 	msg.Event = "error"
 	msg.Error = err
-	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
+	h.sendOutgoingMessages(&models.OutgoingMessageRequest{
+		PrimaryClient: player.Client,
+		PrimaryMsg: &msg,
+	})
 }
 
 // This function must be called with the mutex held.
 func (h *Hub) sendOutgoingMessages(
-	primaryClient *Client,
-	primaryMsg *api.OutgoingMessage,
-	secondaryMsg *api.OutgoingMessage,
-	room *GameRoom) {
+	req *models.OutgoingMessageRequest,
+) {
 	var err error
-	primaryOutput, err := json.Marshal(*primaryMsg)
+	primaryOutput, err := json.Marshal(*req.PrimaryMsg)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
 	var secondaryOutput []byte
-	if secondaryMsg != nil {
-		secondaryOutput, err = json.Marshal(secondaryMsg)
+	if req.SecondaryMsg != nil {
+		secondaryOutput, err = json.Marshal(req.SecondaryMsg)
 		if err != nil {
 			log.Fatal(err)
 			return
@@ -368,15 +358,15 @@ func (h *Hub) sendOutgoingMessages(
 	}
 
 	for client := range h.playerClients {
-		if client == primaryClient {
+		if client == req.PrimaryClient {
 			select {
 			case client.send <- primaryOutput:
 			default:
 				close(client.send)
 				delete(h.playerClients, client)
 			}
-		} else if secondaryMsg != nil &&
-			(room == nil || h.playerClients[client].room == room) {
+		} else if req.SecondaryMsg != nil &&
+			(req.Room == nil || h.playerClients[client].Room == req.Room) {
 			select {
 			case client.send <- secondaryOutput:
 			default:
@@ -388,7 +378,9 @@ func (h *Hub) sendOutgoingMessages(
 }
 
 // This function must be called with the mutex held.
-func (h *Hub) getPlayerInRoom(room *GameRoom, name string) *models.Player {
+func (h *Hub) getPlayerInRoom(room *models.GameRoom, name string) *models.Player {
+	return nil
+	/*
 	for _, players := range room.teams {
 		for _, player := range players {
 			if player.name == name {
@@ -398,4 +390,5 @@ func (h *Hub) getPlayerInRoom(room *GameRoom, name string) *models.Player {
 	}
 
 	return nil
+	*/
 }

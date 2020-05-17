@@ -12,7 +12,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/sndurkin/game-night-in/models"
 	"github.com/sndurkin/game-night-in/api"
 )
 

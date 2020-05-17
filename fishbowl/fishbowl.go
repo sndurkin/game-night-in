@@ -2,7 +2,9 @@ package fishbowl
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -12,13 +14,15 @@ import (
 	fishbowl_api "github.com/sndurkin/game-night-in/fishbowl/api"
 )
 
-// FishbowlPlayerSettings holds the game-specific data about a particular player.
-type FishbowlPlayerSettings struct {
+// fishbowlPlayerSettings holds the game-specific data about a particular player.
+type fishbowlPlayerSettings struct {
 	words       []string
 }
 
 // FishbowlGame holds the game-specific data and logic.
 type FishbowlGame struct {
+	models.Game
+
 	mutex *sync.RWMutex
 	room *models.GameRoom
 	settings *FishbowlGameSettings
@@ -63,6 +67,8 @@ var (
 			"waiting-room",
 		},
 	}
+
+	playersSettings = make(map[*models.Player]fishbowlPlayerSettings)
 )
 
 func NewGame(gameRoom *models.GameRoom, mutex *sync.RWMutex) *FishbowlGame {
@@ -91,11 +97,11 @@ func (g *FishbowlGame) HandleIncomingMessage(
 	player *models.Player,
 	incomingMessage api.IncomingMessage,
 	body json.RawMessage,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	actionType, ok := api.ActionLookup[incomingMessage.Action]
 	if !ok {
 		log.Fatalf("invalid action: %s\n", incomingMessage.Action)
-		return
 	}
 
 	switch actionType {
@@ -103,46 +109,40 @@ func (g *FishbowlGame) HandleIncomingMessage(
 		var req fishbowl_api.AddTeamRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
-			return
 		}
-		g.addTeam(player, req)
+		g.addTeam(player, req, sendOutgoingMessages)
 	case fishbowl_api.ActionRemoveTeam:
 		// TODO
 	case fishbowl_api.ActionMovePlayer:
 		var req fishbowl_api.MovePlayerRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
-			return
 		}
-		g.movePlayer(player, req)
+		g.movePlayer(player, req, sendOutgoingMessages)
 	case fishbowl_api.ActionChangeSettings:
 		var req fishbowl_api.ChangeSettingsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
-			return
 		}
-		g.changeSettings(player, req)
+		g.changeSettings(player, req, sendOutgoingMessages)
 	case fishbowl_api.ActionStartTurn:
 		var req fishbowl_api.StartTurnRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
-			return
 		}
-		g.startTurn(player, req)
+		g.startTurn(player, req, sendOutgoingMessages)
 	case fishbowl_api.ActionSubmitWords:
 		var req fishbowl_api.SubmitWordsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
-			return
 		}
-		g.submitWords(player, req)
+		g.submitWords(player, req, sendOutgoingMessages)
 	case fishbowl_api.ActionChangeCard:
 		var req fishbowl_api.ChangeCardRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
-			return
 		}
-		g.changeCard(player, req)
+		g.changeCard(player, req, sendOutgoingMessages)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
@@ -151,24 +151,27 @@ func (g *FishbowlGame) HandleIncomingMessage(
 func (g *FishbowlGame) addTeam(
 	player *models.Player,
 	req fishbowl_api.AddTeamRequest,
-) error {
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+) {
 	log.Printf("Add team request\n")
 
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player, true, false)
+	_, err := g.performRoomChecks(player, true, false)
 	if err != nil {
-		return err
+		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		return
 	}
 
 	g.teams = append(g.teams, []*models.Player{})
-	g.h.sendUpdatedGameMessages(room, nil)
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 }
 
 func (g *FishbowlGame) movePlayer(
 	player *models.Player,
 	req fishbowl_api.MovePlayerRequest,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Move player request: %s (%d -> %d)\n", req.PlayerName,
 		req.FromTeam, req.ToTeam)
@@ -180,59 +183,66 @@ func (g *FishbowlGame) movePlayer(
 
 	room, err := g.performRoomChecks(player, true, false)
 	if err != nil {
-		g.h.sendErrorMessage(player.client, err.Error())
+		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
 		return
 	}
 
 	if req.FromTeam >= len(g.teams) || req.ToTeam >= len(g.teams) {
 		msg.Event = "error"
 		msg.Error = "The team indexes are invalid."
-		g.h.sendOutgoingMessages(player.client, &msg, nil, nil)
+		sendOutgoingMessages(&models.OutgoingMessageRequest{
+			PrimaryClient: player.Client,
+			PrimaryMsg: &msg,
+		})
 		return
 	}
 
 	playerToMove := g.removePlayerFromTeam(room, req.FromTeam, req.PlayerName)
 	g.teams[req.ToTeam] = append(g.teams[req.ToTeam], playerToMove)
 
-	g.h.sendUpdatedGameMessages(room, nil)
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 }
 
 func (g *FishbowlGame) changeSettings(
 	player *models.Player,
 	req fishbowl_api.ChangeSettingsRequest,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Change settings request\n")
 
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player, true, false)
+	_, err := g.performRoomChecks(player, true, false)
 	if err != nil {
-		g.h.sendErrorMessage(player.client, err.Error())
+		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
 		return
 	}
 
 	g.settings = convertAPISettingsToSettings(req.Settings)
-	g.h.sendUpdatedGameMessages(room, nil)
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 }
 
 func (g *FishbowlGame) startTurn(
 	player *models.Player,
 	req fishbowl_api.StartTurnRequest,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Start turn request\n")
 
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player.client, false, true)
+	_, err := g.performRoomChecks(player, false, true)
 	if err != nil {
-		g.h.sendErrorMessage(player.client, err.Error())
+		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
 		return
 	}
 
 	if !g.validateStateTransition(g.state, "turn-active") {
-		g.h.sendErrorMessage(clientMessage, "You cannot perform that action at this time.")
+		g.sendErrorMessage(player,
+			"You cannot perform that action at this time.",
+			sendOutgoingMessages)
 		return
 	}
 	g.turnJustStarted = true
@@ -277,46 +287,49 @@ func (g *FishbowlGame) startTurn(
 
 		g.turnJustStarted = false
 		g.state = "turn-start"
-		g.moveToNextPlayerAndTeam(room)
+		g.moveToNextPlayerAndTeam()
 
 		log.Printf("Sending updated game message after timer expired\n")
-		g.h.sendUpdatedGameMessages(room, nil)
+		g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 	}()
 
-	g.h.sendUpdatedGameMessages(room, nil)
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 }
 
 func (g *FishbowlGame) submitWords(
 	player *models.Player,
 	req fishbowl_api.SubmitWordsRequest,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Submit words request: %s\n", req.Words)
 
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player, false, false)
+	_, err := g.performRoomChecks(player, false, false)
 	if err != nil {
-		g.h.sendErrorMessage(clientMessage, err.Error())
+		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
 		return
 	}
 
-	player.settings.words = req.Words
-	g.h.sendUpdatedGameMessages(room, nil)
+	playerSettings := playersSettings[player]
+	playerSettings.words = req.Words
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 }
 
 func (g *FishbowlGame) changeCard(
 	player *models.Player,
 	req fishbowl_api.ChangeCardRequest,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Change card request: %s\n", req.ChangeType)
 
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player, false, true)
+	_, err := g.performRoomChecks(player, false, true)
 	if err != nil {
-		g.h.sendErrorMessage(clientMessage, err.Error())
+		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
 		return
 	}
 
@@ -344,8 +357,8 @@ func (g *FishbowlGame) changeCard(
 				// Round over, moving to next round
 				g.state = "turn-start"
 
-				g.reshuffleCardsForRound(room)
-				g.moveToNextPlayerAndTeam(room)
+				g.reshuffleCardsForRound()
+				g.moveToNextPlayerAndTeam()
 
 				// Each round should start with a different team.
 				//
@@ -378,18 +391,138 @@ func (g *FishbowlGame) changeCard(
 		g.cardsInRound = append(g.cardsInRound[1:], g.cardsInRound[0])
 	}
 
-	g.h.sendUpdatedGameMessages(room, nil)
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+}
+
+// AddPlayer adds a player to the current game.
+//
+// This function must be called with the mutex held.
+func (g *FishbowlGame) AddPlayer(
+	player *models.Player,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+) {
+	playersSettings[player] = fishbowlPlayerSettings{
+		words: []string{},
+	}
+
+	g.teams[0] = append(g.teams[0], player)
+
+	var msg api.OutgoingMessage
+	msg.Event = api.Event[api.EventCreatedGame]
+	msg.Body = fishbowl_api.CreatedGameEvent{
+		GameType: g.room.GameType,
+		RoomCode: g.room.RoomCode,
+		Team:     0,
+	}
+
+	sendOutgoingMessages(&models.OutgoingMessageRequest{
+		PrimaryClient: player.Client,
+		PrimaryMsg: &msg,
+	})
+}
+
+func (g *FishbowlGame) Join(
+	player *models.Player,
+	newPlayerJoined bool,
+	req api.JoinGameRequest,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+) {
+	if g.state != "waiting-room" {
+		g.sendErrorMessage(
+			player,
+			"You cannot join a game that has already started.",
+			sendOutgoingMessages,
+		)
+		return
+	}
+
+	if !newPlayerJoined {
+		// Only the player's connection was updated, a new player has not joined.
+		g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+		return
+	}
+
+	// Update the Player instance with the room and chosen name.
+	player.Name = req.Name
+	player.Room = g.room
+	player.IsRoomOwner = false
+	playersSettings[player] = fishbowlPlayerSettings{
+		words: []string{},
+	}
+
+	g.teams[0] = append(g.teams[0], player)
+
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+}
+
+// Start starts the game.
+//
+// This function must be called with the mutex held.
+func (g *FishbowlGame) Start(
+	player *models.Player,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+) {
+	if !g.validateStateTransition(g.state, "turn-start") {
+		g.sendErrorMessage(player,
+			"You cannot perform that action at this time.",
+			sendOutgoingMessages)
+		return
+	}
+	g.turnJustStarted = true
+	g.state = "turn-start"
+
+	g.reshuffleCardsForRound()
+	g.initGameScores()
+
+	g.currentRound = 0
+	g.currentPlayers = make([]int, len(g.teams))
+	for i, players := range g.teams {
+		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players)-1)
+	}
+	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams)-1)
+
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+}
+
+// Rematch starts a new game with the same players and settings.
+//
+// This function must be called with the mutex held.
+func (g *FishbowlGame) Rematch(
+	player *models.Player,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+) {
+	if !g.validateStateTransition(g.state, "waiting-room") {
+		g.sendErrorMessage(player,
+			"You cannot perform that action at this time.",
+			sendOutgoingMessages)
+		return
+	}
+
+	g.state = "waiting-room"
+	g.initGameScores()
+	g.lastCardGuessed = ""
+	g.winningTeam = nil
+
+	for _, teamPlayers := range g.teams {
+		for _, player := range teamPlayers {
+			playerSettings := playersSettings[player]
+			playerSettings.words = []string{}
+		}
+	}
+
+	log.Println("Sending out updated game messages for rematch")
+	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
 }
 
 // This function must be called with the mutex held.
 func (g *FishbowlGame) removePlayerFromTeam(
-	room *GameRoom,
+	room *models.GameRoom,
 	fromTeam int,
 	playerName string,
 ) *models.Player {
 	players := g.teams[fromTeam]
 	for idx, player := range players {
-		if player.name == playerName {
+		if player.Name == playerName {
 			player := players[idx]
 			g.teams[fromTeam] = append(
 				players[:idx],
@@ -414,7 +547,8 @@ func (g *FishbowlGame) reshuffleCardsForRound() {
 	g.cardsInRound = []string{}
 	for _, teamPlayers := range g.teams {
 		for _, player := range teamPlayers {
-			g.cardsInRound = append(g.cardsInRound, player.settings.words...)
+			g.cardsInRound = append(g.cardsInRound,
+				playersSettings[player].words...)
 		}
 	}
 	g.totalNumCards = len(g.cardsInRound)
@@ -426,99 +560,29 @@ func (g *FishbowlGame) reshuffleCardsForRound() {
 }
 
 // This function must be called with the mutex held.
-func (g *FishbowlGame) moveToNextPlayerAndTeam(room *GameRoom) {
+func (g *FishbowlGame) moveToNextPlayerAndTeam() {
 	t := g.currentlyPlayingTeam
 	g.currentPlayers[t] = (g.currentPlayers[t] + 1) % len(g.teams[t])
 	g.currentlyPlayingTeam = (t + 1) % len(g.currentPlayers)
 }
 
 // This function must be called with the mutex held.
-func (g *FishbowlGame) getCurrentPlayer(room *GameRoom) *Player {
+func (g *FishbowlGame) getCurrentPlayer(room *models.GameRoom) *models.Player {
 	players := g.teams[g.currentlyPlayingTeam]
 	return players[g.currentPlayers[g.currentlyPlayingTeam]]
 }
 
-// AddPlayer adds a player to the current game.
-//
-// This function must be called with the mutex held.
-func (g *FishbowlGame) AddPlayer(player *models.Player) {
-	player.settings = &FishbowlPlayerSettings{
-		words: []string{},
-	}
-
-	g.teams[0] = append(g.teams[0], player)
-
-	var msg api.OutgoingMessage
-	msg.Event = api.Event[api.EventCreatedGame]
-	msg.Body = api.CreatedGameEvent{
-		GameType: room.gameType,
-		RoomCode: room.roomCode,
-		//Team:     0,
-	}
-
-	h.sendOutgoingMessages(clientMessage.client, &msg, nil, nil)
-}
-
-// Start starts the game.
-//
-// This function must be called with the mutex held.
-func (g *FishbowlGame) Start(player *models.Player) {
-	if !g.validateStateTransition(g.state, "turn-start") {
-		h.sendErrorMessage(player.client,
-			"You cannot perform that action at this time.")
-		return
-	}
-	g.turnJustStarted = true
-	g.state = "turn-start"
-
-	g.reshuffleCardsForRound(room)
-	g.initGameScores(room)
-
-	g.currentRound = 0
-	g.currentPlayers = make([]int, len(g.teams))
-	for i, players := range g.teams {
-		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players)-1)
-	}
-	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams)-1)
-
-	h.sendUpdatedGameMessages(room, nil)
-}
-
-// Rematch starts a new game with the same players and settings.
-//
-// This function must be called with the mutex held.
-func (g *FishbowlGame) Rematch(player *Player) {
-	if !g.validateStateTransition(g.state, "waiting-room") {
-		h.sendErrorMessage(player.client,
-			"You cannot perform that action at this time.")
-		return
-	}
-
-	g.state = "waiting-room"
-	g.initGameScores()
-	g.lastCardGuessed = ""
-	g.winningTeam = nil
-
-	for _, teamPlayers := range g.teams {
-		for _, player := range teamPlayers {
-			player.settings.words = []string{}
-		}
-	}
-
-	log.Println("Sending out updated game messages for rematch")
-	h.sendUpdatedGameMessages(room, nil)
-}
-
 // This function must be called with the mutex held.
 func (g *FishbowlGame) sendUpdatedGameMessages(
-	room *models.GameRoom,
-	justJoinedClient *models.Client,
+	justJoinedClient interface{},
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
+	room := g.room
 	if g.state == "waiting-room" {
 		var msg api.OutgoingMessage
 		msg.Event = api.Event[api.EventUpdatedRoom]
-		msg.Body = api.UpdatedRoomEvent{
-			GameType: room.gameType,
+		msg.Body = fishbowl_api.UpdatedRoomEvent{
+			GameType: room.GameType,
 			Teams:    convertTeamsToAPITeams(g.teams),
 			Settings: convertSettingsToAPISettings(g.settings),
 		}
@@ -527,9 +591,17 @@ func (g *FishbowlGame) sendUpdatedGameMessages(
 
 		if justJoinedClient != nil {
 			log.Printf("models.Player just rejoined, sending updated-room event\n")
-			g.h.sendOutgoingMessages(justJoinedClient, &msg, nil, room)
+			sendOutgoingMessages(&models.OutgoingMessageRequest{
+				PrimaryClient: justJoinedClient,
+				PrimaryMsg: &msg,
+				Room: room,
+			})
 		} else {
-			g.h.sendOutgoingMessages(nil, &msg, &msg, room)
+			sendOutgoingMessages(&models.OutgoingMessageRequest{
+				PrimaryMsg: &msg,
+				SecondaryMsg: &msg,
+				Room: room,
+			})
 		}
 		return
 	}
@@ -550,7 +622,7 @@ func (g *FishbowlGame) sendUpdatedGameMessages(
 
 	var msgToCurrentPlayer api.OutgoingMessage
 	msgToCurrentPlayer.Event = api.Event[api.EventUpdatedGame]
-	msgToCurrentPlayer.Body = api.UpdatedGameEvent{
+	msgToCurrentPlayer.Body = fishbowl_api.UpdatedGameEvent{
 		State:                 g.state,
 		LastCardGuessed:       g.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
@@ -568,7 +640,7 @@ func (g *FishbowlGame) sendUpdatedGameMessages(
 
 	var msgToOtherPlayers api.OutgoingMessage
 	msgToOtherPlayers.Event = api.Event[api.EventUpdatedGame]
-	msgToOtherPlayers.Body = api.UpdatedGameEvent{
+	msgToOtherPlayers.Body = fishbowl_api.UpdatedGameEvent{
 		State:                 g.state,
 		LastCardGuessed:       g.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
@@ -584,24 +656,49 @@ func (g *FishbowlGame) sendUpdatedGameMessages(
 	}
 
 	if justJoinedClient != nil {
-		log.Printf("models.Player %s just rejoined, sending updated-game event\n", currentPlayer.name)
-		if currentPlayer.client == justJoinedClient {
-			updatedGameEvent := msgToCurrentPlayer.Body.(api.UpdatedGameEvent)
+		log.Printf("models.Player %s just rejoined, sending updated-game event\n", currentPlayer.Name)
+		if currentPlayer.Client == justJoinedClient {
+			updatedGameEvent := msgToCurrentPlayer.Body.(fishbowl_api.UpdatedGameEvent)
 			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
 			msgToCurrentPlayer.Body = updatedGameEvent
-			g.h.sendOutgoingMessages(justJoinedClient, &msgToCurrentPlayer,
-				nil, room)
+			sendOutgoingMessages(&models.OutgoingMessageRequest{
+				PrimaryClient: justJoinedClient,
+				PrimaryMsg: &msgToCurrentPlayer,
+				Room: room,
+			})
 		} else {
-			updatedGameEvent := msgToOtherPlayers.Body.(api.UpdatedGameEvent)
+			updatedGameEvent := msgToOtherPlayers.Body.(fishbowl_api.UpdatedGameEvent)
 			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
 			msgToOtherPlayers.Body = updatedGameEvent
-			g.h.sendOutgoingMessages(justJoinedClient, &msgToOtherPlayers,
-				nil, room)
+			sendOutgoingMessages(&models.OutgoingMessageRequest{
+				PrimaryClient: justJoinedClient,
+				PrimaryMsg: &msgToOtherPlayers,
+				Room: room,
+			})
 		}
 	} else {
-		g.h.sendOutgoingMessages(currentPlayer.client, &msgToCurrentPlayer,
-			&msgToOtherPlayers, room)
+		sendOutgoingMessages(&models.OutgoingMessageRequest{
+			PrimaryClient: currentPlayer.Client,
+			PrimaryMsg: &msgToCurrentPlayer,
+			SecondaryMsg: &msgToOtherPlayers,
+			Room: room,
+		})
 	}
+}
+
+// This function must be called with the mutex held.
+func (g *FishbowlGame) sendErrorMessage(
+	player *models.Player,
+	err string,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+) {
+	var msg api.OutgoingMessage
+	msg.Event = "error"
+	msg.Error = err
+	sendOutgoingMessages(&models.OutgoingMessageRequest{
+		PrimaryClient: player.Client,
+		PrimaryMsg: &msg,
+	})
 }
 
 // This function must be called with the mutex held.
@@ -623,7 +720,7 @@ func (g *FishbowlGame) performRoomChecks(
 	playerMustBeRoomOwner bool,
 	playerMustBeCurrentPlayer bool,
 ) (*models.GameRoom, error) {
-	room := player.room
+	room := player.Room
 	if room == nil {
 		return nil, errors.New("you are not in a game")
 	}
@@ -634,15 +731,15 @@ func (g *FishbowlGame) performRoomChecks(
 	}
 	*/
 
-	room.lastInteractionTime = time.Now()
+	room.LastInteractionTime = time.Now()
 
-	if playerMustBeRoomOwner && !player.isRoomOwner {
+	if playerMustBeRoomOwner && !player.IsRoomOwner {
 		return nil, errors.New("you are not the game owner")
 	}
 
 	if playerMustBeCurrentPlayer {
 		currentPlayer := g.getCurrentPlayer(room)
-		if currentPlayer.name != player.name {
+		if currentPlayer.Name != player.Name {
 			return nil, errors.New("you are not the current player")
 		}
 	}
