@@ -214,7 +214,7 @@ func (h *Hub) createGame(
 		LastInteractionTime: time.Now(),
 		Players: make([]*models.Player, 0),
 	}
-	room.Game = h.newGame(req.GameType, room).(*models.Game)
+	room.Game = h.newGame(req.GameType, room).(models.Game)
 
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -227,7 +227,7 @@ func (h *Hub) createGame(
 	player.IsRoomOwner = true
 	room.Players = append(room.Players, player)
 
-	room.Game.AddPlayer(player)
+	room.Game.AddPlayer(player, h.sendOutgoingMessages)
 }
 
 func (h *Hub) generateUniqueRoomCode() string {

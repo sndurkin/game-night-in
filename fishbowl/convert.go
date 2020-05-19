@@ -13,7 +13,7 @@ func convertPlayersToAPIPlayers(
 		apiPlayers = append(apiPlayers, fishbowl_api.Player{
 			Name:           player.Name,
 			IsRoomOwner:    player.IsRoomOwner,
-			WordsSubmitted: len(playersSettings[player].words) > 0,
+			WordsSubmitted: len(playersSettings[player.Name].words) > 0,
 		})
 	}
 	return apiPlayers
@@ -30,7 +30,7 @@ func convertTeamsToAPITeams(
 }
 
 func convertSettingsToAPISettings(
-	settings *FishbowlGameSettings,
+	settings *GameSettings,
 ) fishbowl_api.GameSettings {
 	apiRounds := make([]string, 0, len(settings.rounds))
 	for _, round := range settings.rounds {
@@ -45,13 +45,13 @@ func convertSettingsToAPISettings(
 
 func convertAPISettingsToSettings(
 	apiSettings fishbowl_api.GameSettings,
-) *FishbowlGameSettings {
+) *GameSettings {
 	rounds := make([]fishbowl_api.RoundT, 0, len(apiSettings.Rounds))
 	for _, apiRound := range apiSettings.Rounds {
 		rounds = append(rounds, fishbowl_api.RoundLookup[apiRound])
 	}
 
-	return &FishbowlGameSettings{
+	return &GameSettings{
 		rounds:      rounds,
 		timerLength: apiSettings.TimerLength,
 	}

@@ -20,39 +20,41 @@ type Player struct {
 type PlayerSettings struct {}
 
 // Game holds the game-specific data and logic.
-type Game struct {}
+type Game interface {
+	HandleIncomingMessage(
+		player *Player,
+		incomingMessage api.IncomingMessage,
+		body json.RawMessage,
+		sendOutgoingMessages OutgoingMessageRequestFn,
+	)
+	Start(
+		player *Player,
+		sendOutgoingMessages OutgoingMessageRequestFn,
+	)
+	AddPlayer(
+		player *Player,
+		sendOutgoingMessages OutgoingMessageRequestFn,
+	)
+	Join(
+		player *Player,
+		newPlayerJoined bool,
+		req api.JoinGameRequest,
+		sendOutgoingMessages OutgoingMessageRequestFn,
+	)
+	Rematch(
+		player *Player,
+		sendOutgoingMessages OutgoingMessageRequestFn,
+	)
+}
 
 type OutgoingMessageRequestFn func(*OutgoingMessageRequest)
-
-func (g *Game) HandleIncomingMessage(
-	player *Player,
-	incomingMessage api.IncomingMessage,
-	body json.RawMessage,
-	sendOutgoingMessages OutgoingMessageRequestFn,
-) {}
-
-func (g *Game) Start(
-	player *Player,
-	sendOutgoingMessages OutgoingMessageRequestFn,
-) {}
-func (g *Game) AddPlayer(player *Player) {}
-func (g *Game) Join(
-	player *Player,
-	newPlayerJoined bool,
-	req api.JoinGameRequest,
-	sendOutgoingMessages OutgoingMessageRequestFn,
-) {}
-func (g *Game) Rematch(
-	player *Player,
-	sendOutgoingMessages OutgoingMessageRequestFn,
-) {}
 
 // GameRoom holds the data about a game room.
 type GameRoom struct {
 	RoomCode            string
 	GameType            string
 	LastInteractionTime time.Time
-	Game                *Game
+	Game                Game
 	Players             []*Player
 }
 
