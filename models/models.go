@@ -53,7 +53,7 @@ type GameRoom struct {
 	GameType            string
 	LastInteractionTime time.Time
 	Game                *Game
-	Players             []Player
+	Players             []*Player
 }
 
 // OutgoingMessageRequest is used by game-specific handlers to

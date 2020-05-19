@@ -212,6 +212,7 @@ func (h *Hub) createGame(
 		GameType: req.GameType,
 		RoomCode: h.generateUniqueRoomCode(),
 		LastInteractionTime: time.Now(),
+		Players: make([]*models.Player, 0),
 	}
 	room.Game = h.newGame(req.GameType, room).(*models.Game)
 
@@ -224,6 +225,7 @@ func (h *Hub) createGame(
 	player.Name = req.Name
 	player.Room = room
 	player.IsRoomOwner = true
+	room.Players = append(room.Players, player)
 
 	room.Game.AddPlayer(player)
 }
@@ -260,7 +262,7 @@ func (h *Hub) joinGame(player *models.Player, req api.JoinGameRequest) {
 		return
 	}
 
-	matchedPlayer := h.getPlayerInRoom(room, req.Name)
+	matchedPlayer, playerIdx := h.getPlayerInRoom(room, req.Name)
 	if matchedPlayer != nil {
 		matchedPlayerClient := matchedPlayer.Client.(*Client)
 		playerClient := player.Client.(*Client)
@@ -283,10 +285,12 @@ func (h *Hub) joinGame(player *models.Player, req api.JoinGameRequest) {
 			matchedPlayer.Client = playerClient
 		}
 		h.playerClients[playerClient] = matchedPlayer
+		room.Players[playerIdx] = matchedPlayer
 		room.Game.Join(matchedPlayer, false, req, h.sendOutgoingMessages)
 		return
 	}
 
+	room.Players = append(room.Players, player)
 	room.Game.Join(player, true, req, h.sendOutgoingMessages)
 }
 
@@ -378,17 +382,15 @@ func (h *Hub) sendOutgoingMessages(
 }
 
 // This function must be called with the mutex held.
-func (h *Hub) getPlayerInRoom(room *models.GameRoom, name string) *models.Player {
-	return nil
-	/*
-	for _, players := range room.teams {
-		for _, player := range players {
-			if player.name == name {
-				return player
-			}
+func (h *Hub) getPlayerInRoom(
+	room *models.GameRoom,
+	name string,
+) (*models.Player, int) {
+	for idx, player := range room.Players {
+		if player.Name == name {
+			return player, idx
 		}
 	}
 
-	return nil
-	*/
+	return nil, -1
 }

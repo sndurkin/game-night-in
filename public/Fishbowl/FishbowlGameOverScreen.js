@@ -39,7 +39,7 @@ export default class FishbowlGameOverScreen extends Component {
         ` : null}
         <h3 class="scores-table-title">Scores</h3>
         <div class="scores-table-ct">
-          <table class="primary scores-table" width="100%">
+          <table class="primary scores-table">
             <thead>
               <tr>
                 <th rowspan="2" style="vertical-align: bottom">Team</th>
