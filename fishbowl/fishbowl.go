@@ -8,21 +8,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sndurkin/game-night-in/models"
-	"github.com/sndurkin/game-night-in/util"
 	api "github.com/sndurkin/game-night-in/api"
 	fishbowl_api "github.com/sndurkin/game-night-in/fishbowl/api"
+	"github.com/sndurkin/game-night-in/models"
+	"github.com/sndurkin/game-night-in/util"
 )
 
-// fishbowlPlayerSettings holds the game-specific data about a particular player.
-type fishbowlPlayerSettings struct {
-	words       []string
+// playerSettings holds the game-specific data about a particular player.
+type playerSettings struct {
+	words []string
 }
 
 // Game holds the game-specific data and logic.
 type Game struct {
-	mutex *sync.RWMutex
-	room *models.GameRoom
+	mutex    *sync.RWMutex
+	room     *models.GameRoom
 	settings *GameSettings
 
 	state                 string
@@ -66,7 +66,7 @@ var (
 		},
 	}
 
-	playersSettings = make(map[string]*fishbowlPlayerSettings)
+	playersSettings = make(map[string]*playerSettings)
 )
 
 func NewGame(gameRoom *models.GameRoom, mutex *sync.RWMutex) *Game {
@@ -190,7 +190,7 @@ func (g *Game) movePlayer(
 		msg.Error = "The team indexes are invalid."
 		sendOutgoingMessages(&models.OutgoingMessageRequest{
 			PrimaryClient: player.Client,
-			PrimaryMsg: &msg,
+			PrimaryMsg:    &msg,
 		})
 		return
 	}
@@ -398,7 +398,7 @@ func (g *Game) AddPlayer(
 	player *models.Player,
 	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
-	playersSettings[player.Name] = &fishbowlPlayerSettings{
+	playersSettings[player.Name] = &playerSettings{
 		words: []string{},
 	}
 
@@ -414,7 +414,7 @@ func (g *Game) AddPlayer(
 
 	sendOutgoingMessages(&models.OutgoingMessageRequest{
 		PrimaryClient: player.Client,
-		PrimaryMsg: &msg,
+		PrimaryMsg:    &msg,
 	})
 }
 
@@ -443,7 +443,7 @@ func (g *Game) Join(
 	player.Name = req.Name
 	player.Room = g.room
 	player.IsRoomOwner = false
-	playersSettings[player.Name] = &fishbowlPlayerSettings{
+	playersSettings[player.Name] = &playerSettings{
 		words: []string{},
 	}
 
@@ -589,14 +589,14 @@ func (g *Game) sendUpdatedGameMessages(
 			log.Printf("models.Player just rejoined, sending updated-room event\n")
 			sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
-				PrimaryMsg: &msg,
-				Room: room,
+				PrimaryMsg:    &msg,
+				Room:          room,
 			})
 		} else {
 			sendOutgoingMessages(&models.OutgoingMessageRequest{
-				PrimaryMsg: &msg,
+				PrimaryMsg:   &msg,
 				SecondaryMsg: &msg,
-				Room: room,
+				Room:         room,
 			})
 		}
 		return
@@ -659,8 +659,8 @@ func (g *Game) sendUpdatedGameMessages(
 			msgToCurrentPlayer.Body = updatedGameEvent
 			sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
-				PrimaryMsg: &msgToCurrentPlayer,
-				Room: room,
+				PrimaryMsg:    &msgToCurrentPlayer,
+				Room:          room,
 			})
 		} else {
 			updatedGameEvent := msgToOtherPlayers.Body.(fishbowl_api.UpdatedGameEvent)
@@ -668,16 +668,16 @@ func (g *Game) sendUpdatedGameMessages(
 			msgToOtherPlayers.Body = updatedGameEvent
 			sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
-				PrimaryMsg: &msgToOtherPlayers,
-				Room: room,
+				PrimaryMsg:    &msgToOtherPlayers,
+				Room:          room,
 			})
 		}
 	} else {
 		sendOutgoingMessages(&models.OutgoingMessageRequest{
 			PrimaryClient: currentPlayer.Client,
-			PrimaryMsg: &msgToCurrentPlayer,
-			SecondaryMsg: &msgToOtherPlayers,
-			Room: room,
+			PrimaryMsg:    &msgToCurrentPlayer,
+			SecondaryMsg:  &msgToOtherPlayers,
+			Room:          room,
 		})
 	}
 }
@@ -693,7 +693,7 @@ func (g *Game) sendErrorMessage(
 	msg.Error = err
 	sendOutgoingMessages(&models.OutgoingMessageRequest{
 		PrimaryClient: player.Client,
-		PrimaryMsg: &msg,
+		PrimaryMsg:    &msg,
 	})
 }
 
