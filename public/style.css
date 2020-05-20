@@ -366,6 +366,10 @@ h3.scores-table-title {
   margin-bottom: 2em;
 }
 
+.scores-table-ct table {
+  min-width: 100%;
+}
+
 .scores-table th {
   background-color: #999;
   border-left: max(1px, 0.1em) solid #fff;

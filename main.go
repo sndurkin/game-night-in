@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sndurkin/game-night-in/api"
+	fishbowl_api "github.com/sndurkin/game-night-in/fishbowl/api"
 )
 
 const (
@@ -56,10 +57,11 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	api.Init()
+	fishbowl_api.Init()
 
-	hub := newHub()
-	go hub.run()
-	go hub.runCleanup()
+	h := newHub()
+	go h.run()
+	go h.runRoomCleanup()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -72,7 +74,7 @@ func main() {
 	http.Handle("/public/", http.StripPrefix("/public/", fs))
 
 	http.HandleFunc("/ws", logRoute(func(w http.ResponseWriter, r *http.Request) {
-		serveWs(hub, w, r)
+		serveWs(h, w, r)
 	}))
 
 	addr := fmt.Sprintf(":%s", port)
