@@ -3,67 +3,17 @@ export default {
     HOME: 'home',
     CREATE_GAME: 'create-game',
     JOIN_GAME: 'join-game',
-    FISHBOWL_ROOM: 'fishbowl-room',
-    FISHBOWL_GAME: 'fishbowl-game',
-    FISHBOWL_GAME_OVER: 'fishbowl-game-over',
   },
   Actions: {
+    START_GAME: 'start-game',
     CREATE_GAME: 'create-game',
     JOIN_GAME: 'join-game',
-    SUBMIT_WORDS: 'submit-words',
-    ADD_TEAM: 'add-team',
-    MOVE_PLAYER: 'move-player',
-    CHANGE_SETTINGS: 'change-settings',
-
-    START_GAME: 'start-game',
-    START_TURN: 'start-turn',
-    CHANGE_CARD: 'change-card',
-
     REMATCH: 'rematch',
-  },
-  States: {
-    WAITING_ROOM: 'waiting-room',
-    TURN_START: 'turn-start',
-    TURN_ACTIVE: 'turn-active',
-    GAME_OVER: 'game-over',
   },
   Events: {
     CREATED_GAME: 'created-game',
     UPDATED_ROOM: 'updated-room',
     UPDATED_GAME: 'updated-game',
-  },
-  CardChange: {
-    CORRECT: 'correct',
-    SKIP: 'skip',
-  },
-  Fishbowl: {
-    MIN_PLAYERS_PER_TEAM: 1,
-    MAX_TEAMS: 10,
-    RoundTypes: {
-      'describe': {
-        title: 'Describe',
-        short: 'Describe this:',
-        long: [
-          'Use anything to describe the word or phrase to your team',
-          'except for spelling hints, rhymes, and gestures.',
-        ].join(' '),
-      },
-      'single': {
-        title: 'Single word',
-        short: 'Describe this in 1 word:',
-        long: [
-          'You can only use a single word to describe the word or phrase',
-          'to your team.',
-        ].join(' '),
-      },
-      'charades': {
-        title: 'Charades',
-        short: 'Act this out:',
-        long: [
-          'You can only act out clues for the word or phrase, no talking!',
-        ].join(' '),
-      },
-    },
   },
   TeamColors: [
     '#cc0000',    // Red

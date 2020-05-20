@@ -3,6 +3,8 @@ import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.
 import Utils from '../Utils.js';
 import Constants from '../Constants.js';
 
+import FishbowlConstants from './FishbowlConstants.js';
+
 
 export default class FishbowlGameOverScreen extends Component {
 
@@ -74,7 +76,7 @@ export default class FishbowlGameOverScreen extends Component {
   handleMessage(data, e) {
     switch (data.event) {
       case Constants.Events.UPDATED_ROOM:
-        this.props.transitionToScreen(Constants.Screens.FISHBOWL_ROOM);
+        this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
         this.props.updateStoreData({
           teams: data.body.teams,
         });

@@ -3,10 +3,12 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import HomeScreen from './HomeScreen.js';
 import CreateGameScreen from './CreateGameScreen.js';
 import JoinGameScreen from './JoinGameScreen.js';
+import Constants from './Constants.js';
+
 import FishbowlRoomScreen from './Fishbowl/FishbowlRoomScreen.js';
 import FishbowlGameScreen from './Fishbowl/FishbowlGameScreen.js';
 import FishbowlGameOverScreen from './Fishbowl/FishbowlGameOverScreen.js';
-import Constants from './Constants.js';
+import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
 
 
 let conn;
@@ -41,11 +43,11 @@ class App extends Component {
         return this.createGameScreen;
       case Constants.Screens.JOIN_GAME:
         return this.joinGameScreen;
-      case Constants.Screens.FISHBOWL_ROOM:
+      case FishbowlConstants.Screens.ROOM:
         return this.fishbowlRoomScreen;
-      case Constants.Screens.FISHBOWL_GAME:
+      case FishbowlConstants.Screens.GAME:
         return this.fishbowlGameScreen;
-      case Constants.Screens.FISHBOWL_GAME_OVER:
+      case FishbowlConstants.Screens.GAME_OVER:
         return this.fishbowlGameOverScreen;
     }
 
@@ -74,13 +76,13 @@ class App extends Component {
         ${screen === Constants.Screens.JOIN_GAME && html`
           <${JoinGameScreen} ref=${r => this.joinGameScreen = r} ...${sharedProps} />
         `}
-        ${screen === Constants.Screens.FISHBOWL_ROOM && html`
+        ${screen === FishbowlConstants.Screens.ROOM && html`
           <${FishbowlRoomScreen} ref=${r => this.fishbowlRoomScreen = r} ...${sharedProps} />
         `}
-        ${screen === Constants.Screens.FISHBOWL_GAME && html`
+        ${screen === FishbowlConstants.Screens.GAME && html`
           <${FishbowlGameScreen} ref=${r => this.fishbowlGameScreen = r} ...${sharedProps} />
         `}
-        ${screen === Constants.Screens.FISHBOWL_GAME_OVER && html`
+        ${screen === FishbowlConstants.Screens.GAME_OVER && html`
           <${FishbowlGameOverScreen} ref=${r => this.fishbowlGameOverScreen = r} ...${sharedProps} />
         `}
       </div>

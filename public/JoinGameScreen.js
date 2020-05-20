@@ -3,6 +3,8 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
+import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
+
 
 export default class JoinGameScreen extends Component {
 
@@ -94,7 +96,7 @@ export default class JoinGameScreen extends Component {
           settings: data.body.settings,
           teams: data.body.teams,
         });
-        this.props.transitionToScreen(Constants.Screens.FISHBOWL_ROOM);
+        this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({
@@ -102,7 +104,7 @@ export default class JoinGameScreen extends Component {
           teams: data.body.teams,
           game: data.body,
         });
-        this.props.transitionToScreen(Constants.Screens.FISHBOWL_GAME);
+        this.props.transitionToScreen(FishbowlConstants.Screens.GAME);
         break;
     }
   }

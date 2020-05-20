@@ -4,6 +4,9 @@ import ScreenWrapper from '../ScreenWrapper.js';
 import Utils from '../Utils.js';
 import Constants from '../Constants.js';
 
+import FishbowlConstants from './FishbowlConstants.js';
+
+
 const WORDS = [
   'apple', 'jump', 'brick', 'red', 'simple', 'potatoes', 'sack', 'lump', 'fowl', 'biscuit', 'cheese',
   'pout', 'leaf', 'tree', 'cow', 'phone', 'call', 'table', 'sawing', 'drilling', 'work', 'yellow',
@@ -141,7 +144,7 @@ export default class FishbowlRoomScreen extends Component {
         <td>${idx + 1}</td>
         <td width="99%">
           <select onChange=${e => this.selectRound(idx, e)}>
-            ${Object.entries(Constants.Fishbowl.RoundTypes).map(e => html`
+            ${Object.entries(FishbowlConstants.RoundTypes).map(e => html`
               <option value=${e[0]} selected=${e[0] === round}>
                 ${e[1].title}
               </option>
@@ -242,7 +245,7 @@ export default class FishbowlRoomScreen extends Component {
         <div class="button-bar">
           <button
             onClick=${this.addTeam}
-            disabled=${teams.length >= Constants.Fishbowl.MAX_TEAMS}
+            disabled=${teams.length >= FishbowlConstants.Game.MAX_TEAMS}
           >
             Add team
           </button>
@@ -316,7 +319,7 @@ export default class FishbowlRoomScreen extends Component {
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({ game: data.body });
-        this.props.transitionToScreen(Constants.Screens.FISHBOWL_GAME);
+        this.props.transitionToScreen(FishbowlConstants.Screens.GAME);
         break;
     }
   }
@@ -361,7 +364,7 @@ export default class FishbowlRoomScreen extends Component {
 
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.CHANGE_SETTINGS,
+      action: FishbowlConstants.Actions.CHANGE_SETTINGS,
       body: {
         settings: settings,
       },
@@ -409,7 +412,7 @@ export default class FishbowlRoomScreen extends Component {
   submitWords() {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.SUBMIT_WORDS,
+      action: FishbowlConstants.Actions.SUBMIT_WORDS,
       body: {
         words: this.state.words,
       },
@@ -431,7 +434,7 @@ export default class FishbowlRoomScreen extends Component {
   addTeam() {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.ADD_TEAM,
+      action: FishbowlConstants.Actions.ADD_TEAM,
       body: {},
     }));
   }
@@ -458,7 +461,7 @@ export default class FishbowlRoomScreen extends Component {
   movePlayer({ name, teamIdxToMoveFrom, teamIdxToMoveTo }) {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.MOVE_PLAYER,
+      action: FishbowlConstants.Actions.MOVE_PLAYER,
       body: {
         playerName: typeof name !== 'undefined' ? name : this.state.playerToMove.name,
         fromTeam: typeof teamIdxToMoveFrom !== 'undefined' ? teamIdxToMoveFrom : this.state.teamIdxToMoveFrom,
@@ -516,7 +519,7 @@ export default class FishbowlRoomScreen extends Component {
   get canStartGame() {
     const { teams } = this.props;
     return teams.every(players => {
-      return players.length >= Constants.Fishbowl.MIN_PLAYERS_PER_TEAM
+      return players.length >= FishbowlConstants.Game.MIN_PLAYERS_PER_TEAM
         && players.every(p => p.wordsSubmitted);
     });
   }

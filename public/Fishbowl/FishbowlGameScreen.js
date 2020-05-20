@@ -3,6 +3,8 @@ import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.
 import ScreenWrapper from '../ScreenWrapper.js';
 import Constants from '../Constants.js';
 
+import FishbowlConstants from './FishbowlConstants.js';
+
 
 export default class FishbowlGameScreen extends Component {
 
@@ -29,7 +31,7 @@ export default class FishbowlGameScreen extends Component {
     const { game } = this.props;
 
     // console.log('component did mount/update:', game.state, this.state.timeLeft);
-    if (game.state === Constants.States.TURN_START && this.state.timeLeft !== null) {
+    if (game.state === FishbowlConstants.States.TURN_START && this.state.timeLeft !== null) {
       clearInterval(this.intervalId);
       this.setState({
         timeLeft: null,
@@ -108,8 +110,8 @@ export default class FishbowlGameScreen extends Component {
         const game = data.body;
 
         this.props.updateStoreData({ game: game });
-        if (game.state === Constants.States.GAME_OVER) {
-          this.props.transitionToScreen(Constants.Screens.FISHBOWL_GAME_OVER);
+        if (game.state === FishbowlConstants.States.GAME_OVER) {
+          this.props.transitionToScreen(FishbowlConstants.Screens.GAME_OVER);
         }
         break;
     }
@@ -118,7 +120,7 @@ export default class FishbowlGameScreen extends Component {
   startTurn() {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.START_TURN,
+      action: FishbowlConstants.Actions.START_TURN,
       body: {},
     }));
   }
@@ -126,7 +128,7 @@ export default class FishbowlGameScreen extends Component {
   changeCard(changeType) {
     const { conn } = this.props;
     conn.send(JSON.stringify({
-      action: Constants.Actions.CHANGE_CARD,
+      action: FishbowlConstants.Actions.CHANGE_CARD,
       body: {
         changeType: changeType,
       },
@@ -187,7 +189,8 @@ export default class FishbowlGameScreen extends Component {
   get gameAreaContents() {
     const { settings, game } = this.props;
 
-    if (game.state === Constants.States.TURN_START && game.numCardsLeftInRound === game.totalNumCards) {
+    if (game.state === FishbowlConstants.States.TURN_START
+      && game.numCardsLeftInRound === game.totalNumCards) {
       const currentRoundType = settings.rounds[game.currentRound];
       return html`
         <div class="round-start">
@@ -195,16 +198,17 @@ export default class FishbowlGameScreen extends Component {
             Round ${game.currentRound + 1}
           </div>
           <div class="round-start-subtitle">
-            ${Constants.Fishbowl.RoundTypes[currentRoundType].title}
+            ${FishbowlConstants.RoundTypes[currentRoundType].title}
           </div>
           <div class="round-start-desc">
-            ${Constants.Fishbowl.RoundTypes[currentRoundType].long}
+            ${FishbowlConstants.RoundTypes[currentRoundType].long}
           </div>
         </div>
       `;
     }
 
-    if (game.state === Constants.States.TURN_ACTIVE && this.isCurrentPlayer) {
+    if (game.state === FishbowlConstants.States.TURN_ACTIVE
+      && this.isCurrentPlayer) {
       return html`
         <div class="game-card">${game.currentCard}</div>
       `;
@@ -228,14 +232,14 @@ export default class FishbowlGameScreen extends Component {
         return html`
           <button
             class="pseudo"
-            onClick=${() => this.changeCard(Constants.CardChange.SKIP)}
+            onClick=${() => this.changeCard(FishbowlConstants.CardChange.SKIP)}
           >
             Skip
           </button>
           <div></div>
           <button
             class="success"
-            onClick=${() => this.changeCard(Constants.CardChange.CORRECT)}
+            onClick=${() => this.changeCard(FishbowlConstants.CardChange.CORRECT)}
           >
             Correct!
           </button>
@@ -254,8 +258,8 @@ export default class FishbowlGameScreen extends Component {
     }
 
     switch (game.state) {
-      case Constants.States.TURN_START:
-      case Constants.States.TURN_ACTIVE:
+      case FishbowlConstants.States.TURN_START:
+      case FishbowlConstants.States.TURN_ACTIVE:
         const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
         const seconds = (timeLeft % 60).toString().padStart(2, '0');
 

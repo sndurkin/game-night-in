@@ -3,6 +3,8 @@ import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.
 import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
+import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
+
 
 export default class CreateGameScreen extends Component {
 
@@ -67,7 +69,7 @@ export default class CreateGameScreen extends Component {
       case Constants.Events.CREATED_GAME:
         localStorage.setItem(Constants.LocalStorage.ROOM_CODE, data.body.roomCode);
 
-        this.props.transitionToScreen(Constants.Screens.FISHBOWL_ROOM);
+        this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
         this.props.updateStoreData({
           name: this.state.name,
           isRoomOwner: true,
