@@ -30,7 +30,7 @@ func convertTeamsToAPITeams(
 }
 
 func convertSettingsToAPISettings(
-	settings *GameSettings,
+	settings *gameSettings,
 ) fishbowl_api.GameSettings {
 	apiRounds := make([]string, 0, len(settings.rounds))
 	for _, round := range settings.rounds {
@@ -45,13 +45,13 @@ func convertSettingsToAPISettings(
 
 func convertAPISettingsToSettings(
 	apiSettings fishbowl_api.GameSettings,
-) *GameSettings {
+) *gameSettings {
 	rounds := make([]fishbowl_api.RoundT, 0, len(apiSettings.Rounds))
 	for _, apiRound := range apiSettings.Rounds {
 		rounds = append(rounds, fishbowl_api.RoundLookup[apiRound])
 	}
 
-	return &GameSettings{
+	return &gameSettings{
 		rounds:      rounds,
 		timerLength: apiSettings.TimerLength,
 	}

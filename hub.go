@@ -51,7 +51,12 @@ func newHub() *Hub {
 func (h *Hub) newGame(gameType string, room *models.GameRoom) interface{} {
 	switch (gameType) {
 	case "fishbowl":
-		return fishbowl.NewGame(room, &h.mutex)
+		return fishbowl.NewGame(
+			room,
+			&h.mutex,
+			h.sendOutgoingMessages,
+			h.sendErrorMessage,
+		)
 	}
 
 	return nil
@@ -131,7 +136,6 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 			player,
 			incomingMessage,
 			body,
-			h.sendOutgoingMessages,
 		)
 		return
 	}
@@ -227,7 +231,7 @@ func (h *Hub) createGame(
 	player.IsRoomOwner = true
 	room.Players = append(room.Players, player)
 
-	room.Game.AddPlayer(player, h.sendOutgoingMessages)
+	room.Game.AddPlayer(player)
 }
 
 func (h *Hub) generateUniqueRoomCode() string {
@@ -258,7 +262,10 @@ func (h *Hub) joinGame(player *models.Player, req api.JoinGameRequest) {
 
 	room, ok := h.rooms[req.RoomCode]
 	if !ok {
-		h.sendErrorMessage(player, "This room code does not exist.")
+		h.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: "This room code does not exist.",
+		})
 		return
 	}
 
@@ -273,8 +280,10 @@ func (h *Hub) joinGame(player *models.Player, req api.JoinGameRequest) {
 			log.Printf("Client with IP %s rejoining with same name as client with IP %s\n",
 				reqAddr.IP.String(), playerAddr.IP.String())
 			/*
-				h.sendErrorMessage(clientMessage,
-					"A player with that name is already in the room.")
+				h.sendErrorMessage(&models.ErrorMessageRequest{
+					Player: player,
+					Error: "A player with that name is already in the room.",
+				})
 				return
 			*/
 		}
@@ -286,12 +295,12 @@ func (h *Hub) joinGame(player *models.Player, req api.JoinGameRequest) {
 		}
 		h.playerClients[playerClient] = matchedPlayer
 		room.Players[playerIdx] = matchedPlayer
-		room.Game.Join(matchedPlayer, false, req, h.sendOutgoingMessages)
+		room.Game.Join(matchedPlayer, false, req)
 		return
 	}
 
 	room.Players = append(room.Players, player)
-	room.Game.Join(player, true, req, h.sendOutgoingMessages)
+	room.Game.Join(player, true, req)
 }
 
 func (h *Hub) startGame(
@@ -305,11 +314,14 @@ func (h *Hub) startGame(
 
 	room, err := h.performRoomChecks(player, true, false)
 	if err != nil {
-		h.sendErrorMessage(player, err.Error())
+		h.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
-	room.Game.Start(player, h.sendOutgoingMessages)
+	room.Game.Start(player)
 }
 
 func (h *Hub) rematch(
@@ -323,20 +335,23 @@ func (h *Hub) rematch(
 
 	room, err := h.performRoomChecks(player, true, false)
 	if err != nil {
-		h.sendErrorMessage(player, err.Error())
+		h.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
-	room.Game.Rematch(player, h.sendOutgoingMessages)
+	room.Game.Rematch(player)
 }
 
 // This function must be called with the mutex held.
-func (h *Hub) sendErrorMessage(player *models.Player, err string) {
+func (h *Hub) sendErrorMessage(req *models.ErrorMessageRequest) {
 	var msg api.OutgoingMessage
 	msg.Event = "error"
-	msg.Error = err
+	msg.Error = req.Error
 	h.sendOutgoingMessages(&models.OutgoingMessageRequest{
-		PrimaryClient: player.Client,
+		PrimaryClient: req.Player.Client,
 		PrimaryMsg: &msg,
 	})
 }

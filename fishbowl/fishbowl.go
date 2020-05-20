@@ -21,9 +21,11 @@ type playerSettings struct {
 
 // Game holds the game-specific data and logic.
 type Game struct {
-	mutex    *sync.RWMutex
-	room     *models.GameRoom
-	settings *GameSettings
+	mutex                *sync.RWMutex
+	sendOutgoingMessages models.OutgoingMessageRequestFn
+	sendErrorMessage     models.ErrorMessageRequestFn
+	room                 *models.GameRoom
+	settings             *gameSettings
 
 	state                 string
 	turnJustStarted       bool
@@ -42,9 +44,9 @@ type Game struct {
 	currentlyPlayingTeam  int   // 0, 1, ...
 }
 
-// GameSettings holds all the data about the
+// gameSettings holds all the data about the
 // game settings.
-type GameSettings struct {
+type gameSettings struct {
 	rounds      []fishbowl_api.RoundT
 	timerLength int
 }
@@ -69,10 +71,17 @@ var (
 	playersSettings = make(map[string]*playerSettings)
 )
 
-func NewGame(gameRoom *models.GameRoom, mutex *sync.RWMutex) *Game {
+func NewGame(
+	gameRoom *models.GameRoom,
+	mutex *sync.RWMutex,
+	sendOutgoingMessages models.OutgoingMessageRequestFn,
+	sendErrorMessage models.ErrorMessageRequestFn,
+) *Game {
 	g := &Game{
 		mutex: mutex,
-		settings: &GameSettings{
+		sendOutgoingMessages: sendOutgoingMessages,
+		sendErrorMessage: sendErrorMessage,
+		settings: &gameSettings{
 			rounds: []fishbowl_api.RoundT{
 				fishbowl_api.RoundDescribe,
 				fishbowl_api.RoundSingleWord,
@@ -95,7 +104,6 @@ func (g *Game) HandleIncomingMessage(
 	player *models.Player,
 	incomingMessage api.IncomingMessage,
 	body json.RawMessage,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	actionType, ok := fishbowl_api.ActionLookup[incomingMessage.Action]
 	if !ok {
@@ -108,7 +116,7 @@ func (g *Game) HandleIncomingMessage(
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
 		}
-		g.addTeam(player, req, sendOutgoingMessages)
+		g.addTeam(player, req)
 	case fishbowl_api.ActionRemoveTeam:
 		// TODO
 	case fishbowl_api.ActionMovePlayer:
@@ -116,31 +124,31 @@ func (g *Game) HandleIncomingMessage(
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
 		}
-		g.movePlayer(player, req, sendOutgoingMessages)
+		g.movePlayer(player, req)
 	case fishbowl_api.ActionChangeSettings:
 		var req fishbowl_api.ChangeSettingsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
 		}
-		g.changeSettings(player, req, sendOutgoingMessages)
+		g.changeSettings(player, req)
 	case fishbowl_api.ActionStartTurn:
 		var req fishbowl_api.StartTurnRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
 		}
-		g.startTurn(player, req, sendOutgoingMessages)
+		g.startTurn(player, req)
 	case fishbowl_api.ActionSubmitWords:
 		var req fishbowl_api.SubmitWordsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
 		}
-		g.submitWords(player, req, sendOutgoingMessages)
+		g.submitWords(player, req)
 	case fishbowl_api.ActionChangeCard:
 		var req fishbowl_api.ChangeCardRequest
 		if err := json.Unmarshal(body, &req); err != nil {
 			log.Fatal(err)
 		}
-		g.changeCard(player, req, sendOutgoingMessages)
+		g.changeCard(player, req)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
@@ -149,7 +157,6 @@ func (g *Game) HandleIncomingMessage(
 func (g *Game) addTeam(
 	player *models.Player,
 	req fishbowl_api.AddTeamRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Add team request\n")
 
@@ -158,18 +165,20 @@ func (g *Game) addTeam(
 
 	_, err := g.performRoomChecks(player, true, false)
 	if err != nil {
-		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
 	g.teams = append(g.teams, []*models.Player{})
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 func (g *Game) movePlayer(
 	player *models.Player,
 	req fishbowl_api.MovePlayerRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Move player request: %s (%d -> %d)\n", req.PlayerName,
 		req.FromTeam, req.ToTeam)
@@ -181,14 +190,17 @@ func (g *Game) movePlayer(
 
 	room, err := g.performRoomChecks(player, true, false)
 	if err != nil {
-		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
 	if req.FromTeam >= len(g.teams) || req.ToTeam >= len(g.teams) {
 		msg.Event = "error"
 		msg.Error = "The team indexes are invalid."
-		sendOutgoingMessages(&models.OutgoingMessageRequest{
+		g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 			PrimaryClient: player.Client,
 			PrimaryMsg:    &msg,
 		})
@@ -198,13 +210,12 @@ func (g *Game) movePlayer(
 	playerToMove := g.removePlayerFromTeam(room, req.FromTeam, req.PlayerName)
 	g.teams[req.ToTeam] = append(g.teams[req.ToTeam], playerToMove)
 
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 func (g *Game) changeSettings(
 	player *models.Player,
 	req fishbowl_api.ChangeSettingsRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Change settings request\n")
 
@@ -213,18 +224,20 @@ func (g *Game) changeSettings(
 
 	_, err := g.performRoomChecks(player, true, false)
 	if err != nil {
-		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
 	g.settings = convertAPISettingsToSettings(req.Settings)
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 func (g *Game) startTurn(
 	player *models.Player,
 	req fishbowl_api.StartTurnRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Start turn request\n")
 
@@ -233,14 +246,18 @@ func (g *Game) startTurn(
 
 	_, err := g.performRoomChecks(player, false, true)
 	if err != nil {
-		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
 	if !g.validateStateTransition(g.state, "turn-active") {
-		g.sendErrorMessage(player,
-			"You cannot perform that action at this time.",
-			sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: "You cannot perform that action at this time.",
+		})
 		return
 	}
 	g.turnJustStarted = true
@@ -288,16 +305,15 @@ func (g *Game) startTurn(
 		g.moveToNextPlayerAndTeam()
 
 		log.Printf("Sending updated game message after timer expired\n")
-		g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+		g.sendUpdatedGameMessages(nil)
 	}()
 
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 func (g *Game) submitWords(
 	player *models.Player,
 	req fishbowl_api.SubmitWordsRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Submit words request: %s\n", req.Words)
 
@@ -306,18 +322,20 @@ func (g *Game) submitWords(
 
 	_, err := g.performRoomChecks(player, false, false)
 	if err != nil {
-		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
 	playersSettings[player.Name].words = req.Words
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 func (g *Game) changeCard(
 	player *models.Player,
 	req fishbowl_api.ChangeCardRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	log.Printf("Change card request: %s\n", req.ChangeType)
 
@@ -326,7 +344,10 @@ func (g *Game) changeCard(
 
 	_, err := g.performRoomChecks(player, false, true)
 	if err != nil {
-		g.sendErrorMessage(player, err.Error(), sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: err.Error(),
+		})
 		return
 	}
 
@@ -388,16 +409,13 @@ func (g *Game) changeCard(
 		g.cardsInRound = append(g.cardsInRound[1:], g.cardsInRound[0])
 	}
 
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 // AddPlayer adds a player to the current game.
 //
 // This function must be called with the mutex held.
-func (g *Game) AddPlayer(
-	player *models.Player,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
-) {
+func (g *Game) AddPlayer(player *models.Player) {
 	playersSettings[player.Name] = &playerSettings{
 		words: []string{},
 	}
@@ -412,7 +430,7 @@ func (g *Game) AddPlayer(
 		Team:     0,
 	}
 
-	sendOutgoingMessages(&models.OutgoingMessageRequest{
+	g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 		PrimaryClient: player.Client,
 		PrimaryMsg:    &msg,
 	})
@@ -422,20 +440,18 @@ func (g *Game) Join(
 	player *models.Player,
 	newPlayerJoined bool,
 	req api.JoinGameRequest,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
 ) {
 	if g.state != "waiting-room" {
-		g.sendErrorMessage(
-			player,
-			"You cannot join a game that has already started.",
-			sendOutgoingMessages,
-		)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: "You cannot join a game that has already started.",
+		})
 		return
 	}
 
 	if !newPlayerJoined {
 		// Only the player's connection was updated, a new player has not joined.
-		g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+		g.sendUpdatedGameMessages(nil)
 		return
 	}
 
@@ -449,20 +465,18 @@ func (g *Game) Join(
 
 	g.teams[0] = append(g.teams[0], player)
 
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 // Start starts the game.
 //
 // This function must be called with the mutex held.
-func (g *Game) Start(
-	player *models.Player,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
-) {
+func (g *Game) Start(player *models.Player) {
 	if !g.validateStateTransition(g.state, "turn-start") {
-		g.sendErrorMessage(player,
-			"You cannot perform that action at this time.",
-			sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: "You cannot perform that action at this time.",
+		})
 		return
 	}
 	g.turnJustStarted = true
@@ -478,20 +492,18 @@ func (g *Game) Start(
 	}
 	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams)-1)
 
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 // Rematch starts a new game with the same players and settings.
 //
 // This function must be called with the mutex held.
-func (g *Game) Rematch(
-	player *models.Player,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
-) {
+func (g *Game) Rematch(player *models.Player) {
 	if !g.validateStateTransition(g.state, "waiting-room") {
-		g.sendErrorMessage(player,
-			"You cannot perform that action at this time.",
-			sendOutgoingMessages)
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error: "You cannot perform that action at this time.",
+		})
 		return
 	}
 
@@ -507,7 +519,7 @@ func (g *Game) Rematch(
 	}
 
 	log.Println("Sending out updated game messages for rematch")
-	g.sendUpdatedGameMessages(nil, sendOutgoingMessages)
+	g.sendUpdatedGameMessages(nil)
 }
 
 // This function must be called with the mutex held.
@@ -569,10 +581,7 @@ func (g *Game) getCurrentPlayer(room *models.GameRoom) *models.Player {
 }
 
 // This function must be called with the mutex held.
-func (g *Game) sendUpdatedGameMessages(
-	justJoinedClient interface{},
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
-) {
+func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	room := g.room
 	if g.state == "waiting-room" {
 		var msg api.OutgoingMessage
@@ -587,13 +596,13 @@ func (g *Game) sendUpdatedGameMessages(
 
 		if justJoinedClient != nil {
 			log.Printf("models.Player just rejoined, sending updated-room event\n")
-			sendOutgoingMessages(&models.OutgoingMessageRequest{
+			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
 				PrimaryMsg:    &msg,
 				Room:          room,
 			})
 		} else {
-			sendOutgoingMessages(&models.OutgoingMessageRequest{
+			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryMsg:   &msg,
 				SecondaryMsg: &msg,
 				Room:         room,
@@ -657,7 +666,7 @@ func (g *Game) sendUpdatedGameMessages(
 			updatedGameEvent := msgToCurrentPlayer.Body.(fishbowl_api.UpdatedGameEvent)
 			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
 			msgToCurrentPlayer.Body = updatedGameEvent
-			sendOutgoingMessages(&models.OutgoingMessageRequest{
+			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
 				PrimaryMsg:    &msgToCurrentPlayer,
 				Room:          room,
@@ -666,35 +675,20 @@ func (g *Game) sendUpdatedGameMessages(
 			updatedGameEvent := msgToOtherPlayers.Body.(fishbowl_api.UpdatedGameEvent)
 			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
 			msgToOtherPlayers.Body = updatedGameEvent
-			sendOutgoingMessages(&models.OutgoingMessageRequest{
+			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
 				PrimaryMsg:    &msgToOtherPlayers,
 				Room:          room,
 			})
 		}
 	} else {
-		sendOutgoingMessages(&models.OutgoingMessageRequest{
+		g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 			PrimaryClient: currentPlayer.Client,
 			PrimaryMsg:    &msgToCurrentPlayer,
 			SecondaryMsg:  &msgToOtherPlayers,
 			Room:          room,
 		})
 	}
-}
-
-// This function must be called with the mutex held.
-func (g *Game) sendErrorMessage(
-	player *models.Player,
-	err string,
-	sendOutgoingMessages models.OutgoingMessageRequestFn,
-) {
-	var msg api.OutgoingMessage
-	msg.Event = "error"
-	msg.Error = err
-	sendOutgoingMessages(&models.OutgoingMessageRequest{
-		PrimaryClient: player.Client,
-		PrimaryMsg:    &msg,
-	})
 }
 
 // This function must be called with the mutex held.
