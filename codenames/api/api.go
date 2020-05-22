@@ -5,8 +5,8 @@ type ActionT int
 // Player holds all the relevant information about a specific player
 // in a game room.
 type Player struct {
-	Name           string `json:"name"`
-	IsRoomOwner    bool   `json:"isRoomOwner,omitempty"`
+	Name        string `json:"name"`
+	IsRoomOwner bool   `json:"isRoomOwner,omitempty"`
 }
 
 // Team holds the information about a specific team.
@@ -15,8 +15,6 @@ type Team struct {
 	Guesser     *Player `json:"guesser"`
 	CardIndices []int   `json:"cardIndices"`
 }
-
-type
 
 // GameSettings holds all the relevant information about a game's
 // settings.
@@ -41,7 +39,7 @@ type ChangeSettingsRequest struct {
 }
 
 // StartTurnRequest is used by the current player to start their turn.
-type StartTurnRequest struct{
+type StartTurnRequest struct {
 	NumCards int `json:"numCards"`
 }
 
@@ -50,7 +48,6 @@ type StartTurnRequest struct{
 type EndTurnRequest struct {
 	Cards []string `json:"cards"`
 }
-
 
 // CreatedGameEvent is an event that is sent to a player
 // when they create a new game room.
@@ -72,17 +69,16 @@ type UpdatedRoomEvent struct {
 // UpdatedGameEvent is an event that is sent to all players
 // playing a game whenever a change has been made to its state.
 type UpdatedGameEvent struct {
-	State                 string     `json:"state"`
-	UseTimer              bool       `json:"useTimer"`
-	CurrentServerTime     int64      `json:"currentServerTime,omitempty"`
-	TimerLength           int        `json:"timerLength,omitempty"`
-	CurrentGuesses        []string   `json:"currentGuesses,omitempty"`
-	NumCardsLeft          []int      `json:"numCardsLeft"`
-	WinningTeam           *int       `json:"winningTeam,omitempty"`
-	CurrentlyPlayingTeam  int        `json:"currentlyPlayingTeam"`
-	Teams                 []Team     `json:"teams,omitempty"`
+	State                string   `json:"state"`
+	UseTimer             bool     `json:"useTimer"`
+	CurrentServerTime    int64    `json:"currentServerTime,omitempty"`
+	TimerLength          int      `json:"timerLength,omitempty"`
+	CurrentGuesses       []string `json:"currentGuesses,omitempty"`
+	NumCardsLeft         []int    `json:"numCardsLeft"`
+	WinningTeam          *int     `json:"winningTeam,omitempty"`
+	CurrentlyPlayingTeam int      `json:"currentlyPlayingTeam"`
+	Teams                []Team   `json:"teams,omitempty"`
 }
-
 
 const (
 	// Codenames game actions
@@ -107,6 +103,7 @@ var (
 	ActionLookup = make(map[string]ActionT)
 )
 
+// Init is called on program startup.
 func Init() {
 	for actionType, action := range Action {
 		ActionLookup[action] = actionType

@@ -71,6 +71,11 @@ var (
 	playersSettings = make(map[string]*playerSettings)
 )
 
+// Init is called on program startup.
+func Init() {
+	fishbowl_api.Init()
+}
+
 func NewGame(
 	gameRoom *models.GameRoom,
 	mutex *sync.RWMutex,
@@ -78,9 +83,9 @@ func NewGame(
 	sendErrorMessage models.ErrorMessageRequestFn,
 ) *Game {
 	g := &Game{
-		mutex: mutex,
+		mutex:                mutex,
 		sendOutgoingMessages: sendOutgoingMessages,
-		sendErrorMessage: sendErrorMessage,
+		sendErrorMessage:     sendErrorMessage,
 		settings: &gameSettings{
 			rounds: []fishbowl_api.RoundT{
 				fishbowl_api.RoundDescribe,
@@ -167,7 +172,7 @@ func (g *Game) addTeam(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -192,7 +197,7 @@ func (g *Game) movePlayer(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -226,7 +231,7 @@ func (g *Game) changeSettings(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -248,7 +253,7 @@ func (g *Game) startTurn(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -256,7 +261,7 @@ func (g *Game) startTurn(
 	if !g.validateStateTransition(g.state, "turn-active") {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot perform that action at this time.",
+			Error:  "You cannot perform that action at this time.",
 		})
 		return
 	}
@@ -324,7 +329,7 @@ func (g *Game) submitWords(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -346,7 +351,7 @@ func (g *Game) changeCard(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -444,7 +449,7 @@ func (g *Game) Join(
 	if g.state != "waiting-room" {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot join a game that has already started.",
+			Error:  "You cannot join a game that has already started.",
 		})
 		return
 	}
@@ -475,7 +480,7 @@ func (g *Game) Start(player *models.Player) {
 	if !g.validateStateTransition(g.state, "turn-start") {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot perform that action at this time.",
+			Error:  "You cannot perform that action at this time.",
 		})
 		return
 	}
@@ -502,7 +507,7 @@ func (g *Game) Rematch(player *models.Player) {
 	if !g.validateStateTransition(g.state, "waiting-room") {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot perform that action at this time.",
+			Error:  "You cannot perform that action at this time.",
 		})
 		return
 	}

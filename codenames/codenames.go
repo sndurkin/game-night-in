@@ -3,8 +3,10 @@ package codenames
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,29 +24,35 @@ type Game struct {
 	room                 *models.GameRoom
 	settings             *gameSettings
 
-	state                 string
-	turnJustStarted       bool
-	currentServerTime     int64
-	timer                 *time.Timer
+	state             string
+	turnJustStarted   bool
+	currentServerTime int64
+	timer             *time.Timer
 
-	cards                 []string
-	assassinCard          int
-	cardsGuessed          []int
-	cardsGuessedInTurn    []int
-	numCardsInTurn        int
+	cards                    []string
+	assassinCardIdx          int
+	cardIndicesGuessed       []int
+	cardIndicesGuessedInTurn []int
+	numCardsInTurn           int
 
-	winningTeam           *int
-	currentlyPlayingTeam  int   // 0, 1, ...
+	teams                []*team
+	winningTeam          *int
+	currentlyPlayingTeam int // 0, 1, ...
 
-	previouslyUsedCards   []string
+	previouslyUsedCards []string
+}
+
+type team struct {
+	spymaster   *models.Player `json:"spymaster"`
+	guesser     *models.Player `json:"guesser"`
+	cardIndices []int          `json:"cardIndices"`
 }
 
 // gameSettings holds all the data about the
 // game settings.
 type gameSettings struct {
-	rounds      []codenames_api.RoundT
-	timerLength int
 	useTimer    bool
+	timerLength int
 }
 
 var (
@@ -63,7 +71,20 @@ var (
 			"waiting-room",
 		},
 	}
+
+	allCards []string
 )
+
+// Init is called on program startup.
+func Init() {
+	codenames_api.Init()
+
+	content, err := ioutil.ReadFile("./codenames-words.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	allCards = strings.Split(strings.Replace(string(content), "\r\n", "\n", -1), "\n")
+}
 
 func NewGame(
 	gameRoom *models.GameRoom,
@@ -72,20 +93,68 @@ func NewGame(
 	sendErrorMessage models.ErrorMessageRequestFn,
 ) *Game {
 	g := &Game{
-		mutex: mutex,
+		mutex:                mutex,
 		sendOutgoingMessages: sendOutgoingMessages,
-		sendErrorMessage: sendErrorMessage,
+		sendErrorMessage:     sendErrorMessage,
 		settings: &gameSettings{
-			useTimer: false,
+			useTimer:    false,
 			timerLength: 90,
 		},
 		room:  gameRoom,
 		state: "waiting-room",
-		teams: make([][]*models.Player, 2),
+		teams: make([]*team, 2),
+		cards: make([]string, 0),
 	}
 
-	g.teams[0] = make([]*models.Player, 0)
-	g.teams[1] = make([]*models.Player, 0)
+	// Generate 25 unique cards for the game.
+	cardIndices := make(map[int]bool, 25)
+	for i := 0; i < 25; i++ {
+		for {
+			newCardIdx := util.GetRandomNumberInRange(0, len(allCards)-1)
+			if _, exists := cardIndices[newCardIdx]; exists {
+				continue
+			}
+
+			cardIndices[newCardIdx] = true
+			g.cards = append(g.cards, allCards[newCardIdx])
+			break
+		}
+	}
+
+	// Generate the assassin card.
+	cardIndices = make(map[int]bool, 12)
+	g.assassinCardIdx = util.GetRandomNumberInRange(0, 24)
+	cardIndices[g.assassinCardIdx] = true
+
+	// Generate the first team's cards.
+	g.teams[0] = &team{}
+	for i := 0; i < 6; i++ {
+		for {
+			newCardIdx := util.GetRandomNumberInRange(0, 24)
+			if _, exists := cardIndices[newCardIdx]; exists {
+				continue
+			}
+
+			cardIndices[newCardIdx] = true
+			g.teams[0].cardIndices = append(g.teams[0].cardIndices, newCardIdx)
+			break
+		}
+	}
+
+	// Generate the second team's cards.
+	g.teams[1] = &team{}
+	for i := 0; i < 5; i++ {
+		for {
+			newCardIdx := util.GetRandomNumberInRange(0, 24)
+			if _, exists := cardIndices[newCardIdx]; exists {
+				continue
+			}
+
+			cardIndices[newCardIdx] = true
+			g.teams[1].cardIndices = append(g.teams[1].cardIndices, newCardIdx)
+			break
+		}
+	}
 
 	return g
 }
@@ -101,14 +170,6 @@ func (g *Game) HandleIncomingMessage(
 	}
 
 	switch actionType {
-	case codenames_api.ActionAddTeam:
-		var req codenames_api.AddTeamRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-		}
-		g.addTeam(player, req)
-	case codenames_api.ActionRemoveTeam:
-		// TODO
 	case codenames_api.ActionMovePlayer:
 		var req codenames_api.MovePlayerRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -157,7 +218,7 @@ func (g *Game) addTeam(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -182,7 +243,7 @@ func (g *Game) movePlayer(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -216,7 +277,7 @@ func (g *Game) changeSettings(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -238,7 +299,7 @@ func (g *Game) startTurn(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -246,7 +307,7 @@ func (g *Game) startTurn(
 	if !g.validateStateTransition(g.state, "turn-active") {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot perform that action at this time.",
+			Error:  "You cannot perform that action at this time.",
 		})
 		return
 	}
@@ -314,7 +375,7 @@ func (g *Game) submitWords(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -336,7 +397,7 @@ func (g *Game) changeCard(
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 		return
 	}
@@ -434,7 +495,7 @@ func (g *Game) Join(
 	if g.state != "waiting-room" {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot join a game that has already started.",
+			Error:  "You cannot join a game that has already started.",
 		})
 		return
 	}
@@ -465,7 +526,7 @@ func (g *Game) Start(player *models.Player) {
 	if !g.validateStateTransition(g.state, "turn-start") {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot perform that action at this time.",
+			Error:  "You cannot perform that action at this time.",
 		})
 		return
 	}
@@ -492,7 +553,7 @@ func (g *Game) Rematch(player *models.Player) {
 	if !g.validateStateTransition(g.state, "waiting-room") {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error: "You cannot perform that action at this time.",
+			Error:  "You cannot perform that action at this time.",
 		})
 		return
 	}

@@ -13,7 +13,8 @@ import (
 	"time"
 
 	"github.com/sndurkin/game-night-in/api"
-	fishbowl_api "github.com/sndurkin/game-night-in/fishbowl/api"
+	"github.com/sndurkin/game-night-in/fishbowl"
+	"github.com/sndurkin/game-night-in/codenames"
 )
 
 const (
@@ -57,7 +58,8 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	api.Init()
-	fishbowl_api.Init()
+	fishbowl.Init()
+	codenames.Init()
 
 	h := newHub()
 	go h.run()

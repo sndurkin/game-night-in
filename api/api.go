@@ -36,7 +36,7 @@ type OutgoingMessage struct {
 }
 
 // UpdatedGameEvent
-type UpdatedGameEvent struct {}
+type UpdatedGameEvent struct{}
 
 const (
 	// General game actions
@@ -58,11 +58,11 @@ const (
 var (
 	// Action holds a map of action types to protocol string.
 	Action = map[ActionT]string{
-		ActionInvalid:        "invalid action",
-		ActionCreateGame:     "create-game",
-		ActionJoinGame:       "join-game",
-		ActionStartGame:      "start-game",
-		ActionRematch:        "rematch",
+		ActionInvalid:    "invalid action",
+		ActionCreateGame: "create-game",
+		ActionJoinGame:   "join-game",
+		ActionStartGame:  "start-game",
+		ActionRematch:    "rematch",
 	}
 
 	// ActionLookup holds a reverse map of Action.
@@ -77,6 +77,7 @@ var (
 	}
 )
 
+// Init is called on program startup.
 func Init() {
 	for actionType, action := range Action {
 		ActionLookup[action] = actionType

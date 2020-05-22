@@ -56,7 +56,6 @@ type ChangeCardRequest struct {
 	ChangeType string `json:"changeType"`
 }
 
-
 // CreatedGameEvent is an event that is sent to a player
 // when they create a new game room.
 type CreatedGameEvent struct {
@@ -92,7 +91,6 @@ type UpdatedGameEvent struct {
 	CurrentlyPlayingTeam  int        `json:"currentlyPlayingTeam"`
 	Teams                 [][]Player `json:"teams,omitempty"`
 }
-
 
 const (
 	// Fishbowl game actions
@@ -140,6 +138,7 @@ var (
 	RoundLookup = make(map[string]RoundT)
 )
 
+// Init is called on program startup.
 func Init() {
 	for actionType, action := range Action {
 		ActionLookup[action] = actionType
