@@ -27,9 +27,10 @@ type GameSettings struct {
 // MovePlayerRequest is used by the owner of a room to move a player
 // from one team to another.
 type MovePlayerRequest struct {
-	PlayerName string `json:"playerName"`
-	FromTeam   int    `json:"fromTeam"`
-	ToTeam     int    `json:"toTeam"`
+	PlayerName          string `json:"playerName"`
+	FromTeam            int    `json:"fromTeam"`
+	ToTeam              int    `json:"toTeam"`
+	ToTeamSpymasterRole bool   `json:"toTeamSpymasterRole"`
 }
 
 // ChangeSettingsRequest is used by the owner of a room to change

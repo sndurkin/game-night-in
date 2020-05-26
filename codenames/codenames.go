@@ -188,12 +188,6 @@ func (g *Game) HandleIncomingMessage(
 			log.Fatal(err)
 		}
 		g.startTurn(player, req)
-	case codenames_api.ActionSubmitWords:
-		var req codenames_api.SubmitWordsRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-		}
-		g.submitWords(player, req)
 	case codenames_api.ActionChangeCard:
 		var req codenames_api.ChangeCardRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -231,8 +225,9 @@ func (g *Game) movePlayer(
 	player *models.Player,
 	req codenames_api.MovePlayerRequest,
 ) {
-	log.Printf("Move player request: %s (%d -> %d)\n", req.PlayerName,
-		req.FromTeam, req.ToTeam)
+	log.Printf("Move player request: %s from %d to %d (%s)\n",
+		req.PlayerName, req.FromTeam, req.ToTeam,
+		req.ToTeamSpymasterRole ? "spymaster" : "guesser")
 
 	var msg api.OutgoingMessage
 
@@ -258,8 +253,23 @@ func (g *Game) movePlayer(
 		return
 	}
 
-	playerToMove := g.removePlayerFromTeam(room, req.FromTeam, req.PlayerName)
-	g.teams[req.ToTeam] = append(g.teams[req.ToTeam], playerToMove)
+	fromTeam := g.teams[req.FromTeam]
+	var playerToMove *models.Player
+	if fromTeam.spymaster != nil && fromTeam.spymaster.Name == req.PlayerName {
+		playerToMove = fromTeam.spymaster
+		fromTeam.spymaster = nil
+	}
+	else if fromTeam.guesser != nil && fromTeam.guesser.Name == req.PlayerName {
+		playerToMove = fromTeam.guesser
+		fromTeam.guesser = nil
+	}
+
+	toTeam := g.teams[req.ToTeam]
+	if req.ToTeamSpymasterRole {
+		toTeam.spymaster = playerToMove
+	} else {
+		toTeam.guesser = playerToMove
+	}
 
 	g.sendUpdatedGameMessages(nil)
 }
@@ -530,13 +540,8 @@ func (g *Game) Start(player *models.Player) {
 		})
 		return
 	}
-	g.turnJustStarted = true
 	g.state = "turn-start"
 
-	g.reshuffleCardsForRound()
-	g.initGameScores()
-
-	g.currentRound = 0
 	g.currentPlayers = make([]int, len(g.teams))
 	for i, players := range g.teams {
 		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players)-1)
@@ -592,13 +597,6 @@ func (g *Game) removePlayerFromTeam(
 	}
 
 	return nil
-}
-
-func (g *Game) initGameScores() {
-	g.teamScoresByRound = make([][]int, len(g.settings.rounds))
-	for idx := range g.settings.rounds {
-		g.teamScoresByRound[idx] = make([]int, len(g.teams))
-	}
 }
 
 // This function must be called with the mutex held.
