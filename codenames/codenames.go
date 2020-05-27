@@ -37,7 +37,7 @@ type Game struct {
 
 	teams                []*team
 	winningTeam          *int
-	currentlyPlayingTeam int // 0, 1, ...
+	currentlyPlayingTeam int // 0 or 1
 
 	previouslyUsedCards []string
 }
@@ -51,8 +51,7 @@ type team struct {
 // gameSettings holds all the data about the
 // game settings.
 type gameSettings struct {
-	useTimer    bool
-	timerLength int
+
 }
 
 var (
@@ -96,10 +95,7 @@ func NewGame(
 		mutex:                mutex,
 		sendOutgoingMessages: sendOutgoingMessages,
 		sendErrorMessage:     sendErrorMessage,
-		settings: &gameSettings{
-			useTimer:    false,
-			timerLength: 90,
-		},
+		settings: &gameSettings{},
 		room:  gameRoom,
 		state: "waiting-room",
 		teams: make([]*team, 2),
@@ -188,6 +184,12 @@ func (g *Game) HandleIncomingMessage(
 			log.Fatal(err)
 		}
 		g.startTurn(player, req)
+	case codenames_api.ActionEndTurn:
+		var req codenames_api.EndTurnRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Fatal(err)
+		}
+		g.endTurn(player, req)
 	case codenames_api.ActionChangeCard:
 		var req codenames_api.ChangeCardRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -208,7 +210,7 @@ func (g *Game) addTeam(
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	_, err := g.performRoomChecks(player, true, false)
+	_, err := g.performRoomChecks(player, true, false, false)
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
@@ -234,7 +236,7 @@ func (g *Game) movePlayer(
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player, true, false)
+	room, err := g.performRoomChecks(player, true, false, false)
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
@@ -283,7 +285,7 @@ func (g *Game) changeSettings(
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	_, err := g.performRoomChecks(player, true, false)
+	_, err := g.performRoomChecks(player, true, false, false)
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
@@ -305,7 +307,7 @@ func (g *Game) startTurn(
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	_, err := g.performRoomChecks(player, false, true)
+	_, err := g.performRoomChecks(player, false, true, false)
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
@@ -324,150 +326,61 @@ func (g *Game) startTurn(
 	g.turnJustStarted = true
 	g.state = "turn-active"
 
-	g.numCardsGuessedInTurn = 0
-	g.lastCardGuessed = ""
-	g.timerLength = g.settings.timerLength + 1
-	g.currentServerTime = time.Now().UnixNano() / 1000000
-	if g.timer != nil {
-		g.timer.Stop()
+	//g.cardIndicesGuessedInTurn = []int{}
+	g.numCardsInTurn = req.NumCards
+
+	g.sendUpdatedGameMessages(nil)
+}
+
+func (g *Game) endTurn(
+	player *models.Player,
+	req codenames_api.EndTurnRequest,
+) {
+	log.Printf("End turn request\n")
+
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	_, err := g.performRoomChecks(player, false, false, true)
+	if err != nil {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  err.Error(),
+		})
+		return
 	}
-	g.timer = time.NewTimer(time.Second * time.Duration(g.timerLength))
 
-	// Wait for timer to finish in an asynchronous goroutine
-	go func() {
-		// Block until timer finishes. When it is done, it sends a message
-		// on the channel timer.C. No other code in
-		// this goroutine is executed until that happens.
-		<-g.timer.C
+	if !g.validateStateTransition(g.state, "turn-start") {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  "You cannot perform that action at this time.",
+		})
+		return
+	}
+	g.state = "turn-start"
 
-		log.Println("Timer expired, waiting on lock")
+	if g.numCardsInTurn > len(req.CardGuessIndices) {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  "You cannot make that many guesses.",
+		})
+		return
+	}
 
-		g.mutex.Lock()
-		defer g.mutex.Unlock()
-
-		log.Println(" - lock obtained")
-
-		g.timer = nil
-
-		log.Printf("Game state when timer ended: %s\n", g.state)
-		if !g.validateStateTransition(g.state, "turn-start") {
-			if g.state == "turn-start" || g.state == "game-over" {
-				// Round or game finished before the player's turn timer expired,
-				// so do nothing.
-				return
+	for _, cardGuessIdx := range req.CardGuessIndices {
+		if g.assassinCardIdx == cardGuessIdx {
+			if g.currentlyPlayingTeam == 0 {
+				g.winningTeam = new(1)
+			} else {
+				g.winningTeam = new(0)
 			}
 
-			log.Fatalf("Game was not in correct state when turn timer expired: %s", g.state)
+			g.state = "game-over"
+			g.sendUpdatedGameMessages(nil)
 			return
 		}
 
-		g.turnJustStarted = false
-		g.state = "turn-start"
-		g.moveToNextPlayerAndTeam()
-
-		log.Printf("Sending updated game message after timer expired\n")
-		g.sendUpdatedGameMessages(nil)
-	}()
-
-	g.sendUpdatedGameMessages(nil)
-}
-
-func (g *Game) submitWords(
-	player *models.Player,
-	req codenames_api.SubmitWordsRequest,
-) {
-	log.Printf("Submit words request: %s\n", req.Words)
-
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-
-	_, err := g.performRoomChecks(player, false, false)
-	if err != nil {
-		g.sendErrorMessage(&models.ErrorMessageRequest{
-			Player: player,
-			Error:  err.Error(),
-		})
-		return
-	}
-
-	playersSettings[player.Name].words = req.Words
-	g.sendUpdatedGameMessages(nil)
-}
-
-func (g *Game) changeCard(
-	player *models.Player,
-	req codenames_api.ChangeCardRequest,
-) {
-	log.Printf("Change card request: %s\n", req.ChangeType)
-
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-
-	_, err := g.performRoomChecks(player, false, true)
-	if err != nil {
-		g.sendErrorMessage(&models.ErrorMessageRequest{
-			Player: player,
-			Error:  err.Error(),
-		})
-		return
-	}
-
-	if g.state != "turn-active" {
-		// Ignore, the turn is probably over.
-		return
-	}
-
-	g.turnJustStarted = false
-	if req.ChangeType == "correct" {
-		// Increment score for current team and the current turn.
-		g.teamScoresByRound[g.currentRound][g.currentlyPlayingTeam]++
-		g.numCardsGuessedInTurn++
-
-		g.lastCardGuessed = g.cardsInRound[0]
-		g.cardsInRound = g.cardsInRound[1:]
-
-		if len(g.cardsInRound) == 0 {
-			if g.timer != nil {
-				g.timer.Stop()
-			}
-
-			g.currentRound++
-			if g.currentRound < len(g.settings.rounds) {
-				// Round over, moving to next round
-				g.state = "turn-start"
-
-				g.reshuffleCardsForRound()
-				g.moveToNextPlayerAndTeam()
-
-				// Each round should start with a different team.
-				//
-				// TODO: The teams should be re-ordered based on score.
-				g.currentlyPlayingTeam = util.GetRandomNumberInRange(0,
-					len(g.teams)-1)
-			} else {
-				g.state = "game-over" // TODO: update to use constant from api.go
-
-				totalScores := make([]int, len(g.teams))
-				for _, scoresByTeam := range g.teamScoresByRound {
-					for team, score := range scoresByTeam {
-						totalScores[team] += score
-					}
-				}
-
-				var teamWithMax, max int
-				for team, totalScore := range totalScores {
-					if totalScore > max {
-						max = totalScore
-						teamWithMax = team
-					}
-				}
-
-				g.winningTeam = &teamWithMax
-			}
-		}
-	} else {
-		// Skip this card, push it to the end
-		g.cardsInRound = append(g.cardsInRound[1:], g.cardsInRound[0])
+		g.cardIndicesGuessed = append(g.cardIndicesGuessed, cardGuessIdx)
 	}
 
 	g.sendUpdatedGameMessages(nil)
@@ -477,10 +390,6 @@ func (g *Game) changeCard(
 //
 // This function must be called with the mutex held.
 func (g *Game) AddPlayer(player *models.Player) {
-	playersSettings[player.Name] = &playerSettings{
-		words: []string{},
-	}
-
 	g.teams[0] = append(g.teams[0], player)
 
 	var msg api.OutgoingMessage
@@ -520,9 +429,6 @@ func (g *Game) Join(
 	player.Name = req.Name
 	player.Room = g.room
 	player.IsRoomOwner = false
-	playersSettings[player.Name] = &playerSettings{
-		words: []string{},
-	}
 
 	g.teams[0] = append(g.teams[0], player)
 
@@ -542,11 +448,8 @@ func (g *Game) Start(player *models.Player) {
 	}
 	g.state = "turn-start"
 
-	g.currentPlayers = make([]int, len(g.teams))
-	for i, players := range g.teams {
-		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players)-1)
-	}
-	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams)-1)
+	g.cardIndicesGuessed = []int{}
+	g.currentlyPlayingTeam = 0
 
 	g.sendUpdatedGameMessages(nil)
 }
@@ -624,9 +527,15 @@ func (g *Game) moveToNextPlayerAndTeam() {
 }
 
 // This function must be called with the mutex held.
-func (g *Game) getCurrentPlayer(room *models.GameRoom) *models.Player {
-	players := g.teams[g.currentlyPlayingTeam]
-	return players[g.currentPlayers[g.currentlyPlayingTeam]]
+func (g *Game) getCurrentSpymaster(room *models.GameRoom) *models.Player {
+	team := g.teams[g.currentlyPlayingTeam]
+	return team.spymaster
+}
+
+// This function must be called with the mutex held.
+func (g *Game) getCurrentGuesser(room *models.GameRoom) *models.Player {
+	team := g.teams[g.currentlyPlayingTeam]
+	return team.guesser
 }
 
 // This function must be called with the mutex held.
@@ -659,21 +568,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		}
 		return
 	}
-
-	currentPlayer := g.getCurrentPlayer(room)
-
-	var currentCard string
-	var currentServerTime int64
-	var timerLength int
-	if g.state == "turn-active" {
-		currentCard = g.cardsInRound[0]
-
-		if g.turnJustStarted || justJoinedClient != nil {
-			currentServerTime = g.currentServerTime
-			timerLength = g.timerLength
-		}
-	}
-
+	/*
 	var msgToCurrentPlayer api.OutgoingMessage
 	msgToCurrentPlayer.Event = api.Event[api.EventUpdatedGame]
 	msgToCurrentPlayer.Body = codenames_api.UpdatedGameEvent{
@@ -691,7 +586,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		CurrentPlayers:        g.currentPlayers,
 		CurrentlyPlayingTeam:  g.currentlyPlayingTeam,
 	}
-
+	*/
 	var msgToOtherPlayers api.OutgoingMessage
 	msgToOtherPlayers.Event = api.Event[api.EventUpdatedGame]
 	msgToOtherPlayers.Body = codenames_api.UpdatedGameEvent{
@@ -757,7 +652,8 @@ func (g *Game) validateStateTransition(fromState, toState string) bool {
 func (g *Game) performRoomChecks(
 	player *models.Player,
 	playerMustBeRoomOwner bool,
-	playerMustBeCurrentPlayer bool,
+	playerMustBeCurrentSpymaster bool,
+	playerMustBeCurrentGuesser bool,
 ) (*models.GameRoom, error) {
 	room := player.Room
 	if room == nil {
@@ -776,10 +672,17 @@ func (g *Game) performRoomChecks(
 		return nil, errors.New("you are not the game owner")
 	}
 
-	if playerMustBeCurrentPlayer {
-		currentPlayer := g.getCurrentPlayer(room)
-		if currentPlayer.Name != player.Name {
-			return nil, errors.New("you are not the current player")
+	if playerMustBeCurrentSpymaster {
+		currentSpymaster := g.getCurrentSpymaster(room)
+		if currentSpymaster.Name != player.Name {
+			return nil, errors.New("you are not the current spymaster")
+		}
+	}
+
+	if playerMustBeCurrentGuesser {
+		currentGuesser := g.getCurrentGuesser(room)
+		if currentGuesser.Name != player.Name {
+			return nil, errors.New("you are not the current guesser")
 		}
 	}
 

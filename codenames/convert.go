@@ -13,7 +13,6 @@ func convertPlayersToAPIPlayers(
 		apiPlayers = append(apiPlayers, codenames_api.Player{
 			Name:           player.Name,
 			IsRoomOwner:    player.IsRoomOwner,
-			WordsSubmitted: len(playersSettings[player.Name].words) > 0,
 		})
 	}
 	return apiPlayers
@@ -33,8 +32,7 @@ func convertSettingsToAPISettings(
 	settings *gameSettings,
 ) codenames_api.GameSettings {
 	return codenames_api.GameSettings{
-		UseTimer:    settings.useTimer,
-		TimerLength: settings.timerLength,
+
 	}
 }
 
@@ -42,7 +40,6 @@ func convertAPISettingsToSettings(
 	apiSettings codenames_api.GameSettings,
 ) *gameSettings {
 	return &gameSettings{
-		useTimer:    apiSettings.UseTimer,
-		timerLength: apiSettings.TimerLength,
+
 	}
 }

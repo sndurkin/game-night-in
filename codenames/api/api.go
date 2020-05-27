@@ -47,7 +47,7 @@ type StartTurnRequest struct {
 // EndTurnRequest is used by the current team to
 // guess the cards and end the turn.
 type EndTurnRequest struct {
-	Cards []string `json:"cards"`
+	CardGuessIndices []int `json:"cardGuessIndices"`
 }
 
 // CreatedGameEvent is an event that is sent to a player
