@@ -12,7 +12,7 @@ export default class CreateGameScreen extends Component {
     super(...args);
 
     this.state = {
-      gameType: 'fishbowl',
+      gameType: 'codenames',
       name: localStorage.getItem(Constants.LocalStorage.PLAYER_NAME) || '',
       error: '',
     };
@@ -39,6 +39,7 @@ export default class CreateGameScreen extends Component {
               Game type
               <select value=${gameType} onChange=${this.onSelectGameType}>
                 <option value="fishbowl">Fishbowl</option>
+                <option value="codenames">Codenames</option>
               </select>
             </label>
             <label>
@@ -69,7 +70,15 @@ export default class CreateGameScreen extends Component {
       case Constants.Events.CREATED_GAME:
         localStorage.setItem(Constants.LocalStorage.ROOM_CODE, data.body.roomCode);
 
-        this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
+        switch (data.body.gameType) {
+          case 'fishbowl':
+            this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
+            break;
+          case 'codenames':
+            this.props.transitionToScreen(CodenamesConstants.Screens.ROOM);
+            break;
+        }
+
         this.props.updateStoreData({
           name: this.state.name,
           isRoomOwner: true,

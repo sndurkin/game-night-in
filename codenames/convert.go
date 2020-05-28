@@ -18,14 +18,27 @@ func convertPlayersToAPIPlayers(
 	return apiPlayers
 }
 
-func convertTeamsToAPITeams(
-	teams [][]*models.Player,
-) [][]codenames_api.Player {
-	apiTeams := make([][]codenames_api.Player, 0, len(teams))
-	for _, players := range teams {
-		apiTeams = append(apiTeams, convertPlayersToAPIPlayers(players))
+func convertTeamsToAPITeams(teams []*team) []codenames_api.Team {
+	apiTeams := make([]codenames_api.Team, 0, len(teams))
+	for _, team := range teams {
+		apiTeams = append(apiTeams, convertTeamToAPITeam(team))
 	}
 	return apiTeams
+}
+
+func convertTeamToAPITeam(team *team) codenames_api.Team {
+	return codenames_api.Team{
+		Spymaster: convertPlayerToAPIPlayer(team.spymaster),
+		Guesser: convertPlayerToAPIPlayer(team.guesser),
+		CardIndices: team.cardIndices,
+	}
+}
+
+func convertPlayerToAPIPlayer(player *models.Player) codenames_api.Player {
+	return codenames_api.Player{
+		Name: player.Name,
+		IsRoomOwner: player.IsRoomOwner,
+	}
 }
 
 func convertSettingsToAPISettings(

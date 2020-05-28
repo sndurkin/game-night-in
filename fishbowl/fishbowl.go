@@ -666,7 +666,16 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	}
 
 	if justJoinedClient != nil {
-		log.Printf("models.Player %s just rejoined, sending updated-game event\n", currentPlayer.Name)
+		var justJoinedPlayer *models.Player
+		for _, player := range room.Players {
+			if player.Client == justJoinedClient {
+				justJoinedPlayer = player
+				break
+			}
+		}
+
+		log.Printf("Player %s just rejoined, sending updated-game event\n",
+			justJoinedPlayer.Name)
 		if currentPlayer.Client == justJoinedClient {
 			updatedGameEvent := msgToCurrentPlayer.Body.(fishbowl_api.UpdatedGameEvent)
 			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)

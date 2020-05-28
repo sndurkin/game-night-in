@@ -11,9 +11,9 @@ type Player struct {
 
 // Team holds the information about a specific team.
 type Team struct {
-	Spymaster   *Player `json:"spymaster"`
-	Guesser     *Player `json:"guesser"`
-	CardIndices []int   `json:"cardIndices"`
+	Spymaster   Player `json:"spymaster"`
+	Guesser     Player `json:"guesser"`
+	CardIndices []int  `json:"cardIndices"`
 }
 
 // GameSettings holds all the relevant information about a game's
@@ -70,15 +70,11 @@ type UpdatedRoomEvent struct {
 // UpdatedGameEvent is an event that is sent to all players
 // playing a game whenever a change has been made to its state.
 type UpdatedGameEvent struct {
-	State                string   `json:"state"`
-	UseTimer             bool     `json:"useTimer"`
-	CurrentServerTime    int64    `json:"currentServerTime,omitempty"`
-	TimerLength          int      `json:"timerLength,omitempty"`
-	CurrentGuesses       []string `json:"currentGuesses,omitempty"`
-	NumCardsLeft         []int    `json:"numCardsLeft"`
-	WinningTeam          *int     `json:"winningTeam,omitempty"`
-	CurrentlyPlayingTeam int      `json:"currentlyPlayingTeam"`
-	Teams                []Team   `json:"teams,omitempty"`
+	State                string `json:"state"`
+	CardIndicesGuessed   []int  `json:"cardIndicesGuessed,omitempty"`
+	WinningTeam          *int   `json:"winningTeam,omitempty"`
+	CurrentlyPlayingTeam int    `json:"currentlyPlayingTeam"`
+	Teams                []Team `json:"teams,omitempty"`
 }
 
 const (

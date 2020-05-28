@@ -3,9 +3,9 @@ package codenames
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -32,7 +32,6 @@ type Game struct {
 	cards                    []string
 	assassinCardIdx          int
 	cardIndicesGuessed       []int
-	cardIndicesGuessedInTurn []int
 	numCardsInTurn           int
 
 	teams                []*team
@@ -78,7 +77,7 @@ var (
 func Init() {
 	codenames_api.Init()
 
-	content, err := ioutil.ReadFile("./codenames-words.txt")
+	content, err := ioutil.ReadFile("./codenames/codenames-words.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -190,53 +189,30 @@ func (g *Game) HandleIncomingMessage(
 			log.Fatal(err)
 		}
 		g.endTurn(player, req)
-	case codenames_api.ActionChangeCard:
-		var req codenames_api.ChangeCardRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
-		}
-		g.changeCard(player, req)
 	default:
 		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
 	}
-}
-
-func (g *Game) addTeam(
-	player *models.Player,
-	req codenames_api.AddTeamRequest,
-) {
-	log.Printf("Add team request\n")
-
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-
-	_, err := g.performRoomChecks(player, true, false, false)
-	if err != nil {
-		g.sendErrorMessage(&models.ErrorMessageRequest{
-			Player: player,
-			Error:  err.Error(),
-		})
-		return
-	}
-
-	g.teams = append(g.teams, []*models.Player{})
-	g.sendUpdatedGameMessages(nil)
 }
 
 func (g *Game) movePlayer(
 	player *models.Player,
 	req codenames_api.MovePlayerRequest,
 ) {
-	log.Printf("Move player request: %s from %d to %d (%s)\n",
-		req.PlayerName, req.FromTeam, req.ToTeam,
-		req.ToTeamSpymasterRole ? "spymaster" : "guesser")
+	var roleName string
+	if req.ToTeamSpymasterRole {
+		roleName = "spymaster"
+	} else {
+		roleName = "guesser"
+	}
+	log.Printf("Move player request: %s from %d to %d (%s)\n", req.PlayerName,
+		req.FromTeam, req.ToTeam, roleName)
 
 	var msg api.OutgoingMessage
 
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
-	room, err := g.performRoomChecks(player, true, false, false)
+	_, err := g.performRoomChecks(player, true, false, false)
 	if err != nil {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
@@ -260,8 +236,7 @@ func (g *Game) movePlayer(
 	if fromTeam.spymaster != nil && fromTeam.spymaster.Name == req.PlayerName {
 		playerToMove = fromTeam.spymaster
 		fromTeam.spymaster = nil
-	}
-	else if fromTeam.guesser != nil && fromTeam.guesser.Name == req.PlayerName {
+	} else if fromTeam.guesser != nil && fromTeam.guesser.Name == req.PlayerName {
 		playerToMove = fromTeam.guesser
 		fromTeam.guesser = nil
 	}
@@ -326,7 +301,6 @@ func (g *Game) startTurn(
 	g.turnJustStarted = true
 	g.state = "turn-active"
 
-	//g.cardIndicesGuessedInTurn = []int{}
 	g.numCardsInTurn = req.NumCards
 
 	g.sendUpdatedGameMessages(nil)
@@ -368,11 +342,22 @@ func (g *Game) endTurn(
 	}
 
 	for _, cardGuessIdx := range req.CardGuessIndices {
+		if util.IntInSlice(g.cardIndicesGuessed, cardGuessIdx) {
+			g.sendErrorMessage(&models.ErrorMessageRequest{
+				Player: player,
+				Error:  fmt.Sprintf("Card \"%s\" has already been guessed.",
+					g.cards[cardGuessIdx]),
+			})
+			return
+		}
+	}
+
+	for _, cardGuessIdx := range req.CardGuessIndices {
 		if g.assassinCardIdx == cardGuessIdx {
 			if g.currentlyPlayingTeam == 0 {
-				g.winningTeam = new(1)
+				*g.winningTeam = 1
 			} else {
-				g.winningTeam = new(0)
+				*g.winningTeam = 0
 			}
 
 			g.state = "game-over"
@@ -390,7 +375,7 @@ func (g *Game) endTurn(
 //
 // This function must be called with the mutex held.
 func (g *Game) AddPlayer(player *models.Player) {
-	g.teams[0] = append(g.teams[0], player)
+	g.teams[0].spymaster = player
 
 	var msg api.OutgoingMessage
 	msg.Event = api.Event[api.EventCreatedGame]
@@ -425,12 +410,26 @@ func (g *Game) Join(
 		return
 	}
 
+	if g.teams[0].spymaster == nil {
+		g.teams[0].spymaster = player
+	} else if g.teams[0].guesser == nil {
+		g.teams[0].guesser = player
+	} else if g.teams[1].spymaster == nil {
+		g.teams[1].spymaster = player
+	} else if g.teams[1].guesser == nil {
+		g.teams[1].guesser = player
+	} else {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  "This game is full.",
+		})
+		return
+	}
+
 	// Update the Player instance with the room and chosen name.
 	player.Name = req.Name
 	player.Room = g.room
 	player.IsRoomOwner = false
-
-	g.teams[0] = append(g.teams[0], player)
 
 	g.sendUpdatedGameMessages(nil)
 }
@@ -467,15 +466,8 @@ func (g *Game) Rematch(player *models.Player) {
 	}
 
 	g.state = "waiting-room"
-	g.initGameScores()
-	g.lastCardGuessed = ""
+	g.cardIndicesGuessed = []int{}
 	g.winningTeam = nil
-
-	for _, teamPlayers := range g.teams {
-		for _, player := range teamPlayers {
-			playersSettings[player.Name].words = []string{}
-		}
-	}
 
 	log.Println("Sending out updated game messages for rematch")
 	g.sendUpdatedGameMessages(nil)
@@ -487,43 +479,21 @@ func (g *Game) removePlayerFromTeam(
 	fromTeam int,
 	playerName string,
 ) *models.Player {
-	players := g.teams[fromTeam]
-	for idx, player := range players {
-		if player.Name == playerName {
-			player := players[idx]
-			g.teams[fromTeam] = append(
-				players[:idx],
-				players[idx+1:]...,
-			)
-			return player
-		}
+	team := g.teams[fromTeam]
+
+	if team.spymaster != nil && team.spymaster.Name == playerName {
+		player := team.spymaster
+		team.spymaster = nil
+		return player
+	}
+
+	if team.guesser != nil && team.guesser.Name == playerName {
+		player := team.guesser
+		team.guesser = nil
+		return player
 	}
 
 	return nil
-}
-
-// This function must be called with the mutex held.
-func (g *Game) reshuffleCardsForRound() {
-	g.cardsInRound = []string{}
-	for _, teamPlayers := range g.teams {
-		for _, player := range teamPlayers {
-			g.cardsInRound = append(g.cardsInRound,
-				playersSettings[player.Name].words...)
-		}
-	}
-	g.totalNumCards = len(g.cardsInRound)
-
-	arr := g.cardsInRound
-	rand.Shuffle(len(g.cardsInRound), func(i, j int) {
-		arr[i], arr[j] = arr[j], arr[i]
-	})
-}
-
-// This function must be called with the mutex held.
-func (g *Game) moveToNextPlayerAndTeam() {
-	t := g.currentlyPlayingTeam
-	g.currentPlayers[t] = (g.currentPlayers[t] + 1) % len(g.teams[t])
-	g.currentlyPlayingTeam = (t + 1) % len(g.currentPlayers)
 }
 
 // This function must be called with the mutex held.
@@ -591,45 +561,37 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	msgToOtherPlayers.Event = api.Event[api.EventUpdatedGame]
 	msgToOtherPlayers.Body = codenames_api.UpdatedGameEvent{
 		State:                 g.state,
-		LastCardGuessed:       g.lastCardGuessed,
-		CurrentServerTime:     currentServerTime,
-		TimerLength:           timerLength,
-		TotalNumCards:         g.totalNumCards,
+		CardIndicesGuessed:    g.cardIndicesGuessed,
 		WinningTeam:           g.winningTeam,
-		NumCardsLeftInRound:   len(g.cardsInRound),
-		NumCardsGuessedInTurn: g.numCardsGuessedInTurn,
-		TeamScoresByRound:     g.teamScoresByRound,
-		CurrentRound:          g.currentRound,
-		CurrentPlayers:        g.currentPlayers,
 		CurrentlyPlayingTeam:  g.currentlyPlayingTeam,
+		//Teams:                 convertTeamsToAPITeams(g.teams),
 	}
 
 	if justJoinedClient != nil {
-		log.Printf("models.Player %s just rejoined, sending updated-game event\n", currentPlayer.Name)
-		if currentPlayer.Client == justJoinedClient {
-			updatedGameEvent := msgToCurrentPlayer.Body.(codenames_api.UpdatedGameEvent)
-			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
-			msgToCurrentPlayer.Body = updatedGameEvent
-			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
-				PrimaryClient: justJoinedClient,
-				PrimaryMsg:    &msgToCurrentPlayer,
-				Room:          room,
-			})
-		} else {
-			updatedGameEvent := msgToOtherPlayers.Body.(codenames_api.UpdatedGameEvent)
-			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
-			msgToOtherPlayers.Body = updatedGameEvent
-			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
-				PrimaryClient: justJoinedClient,
-				PrimaryMsg:    &msgToOtherPlayers,
-				Room:          room,
-			})
+		var justJoinedPlayer *models.Player
+		for _, player := range room.Players {
+			if player.Client == justJoinedClient {
+				justJoinedPlayer = player
+				break
+			}
 		}
+
+		log.Printf(
+			"Player %s just rejoined, sending updated-game event\n",
+			justJoinedPlayer.Name,
+		)
+
+		updatedGameEvent := msgToOtherPlayers.Body.(codenames_api.UpdatedGameEvent)
+		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
+		msgToOtherPlayers.Body = updatedGameEvent
+		g.sendOutgoingMessages(&models.OutgoingMessageRequest{
+			PrimaryClient: justJoinedClient,
+			PrimaryMsg:    &msgToOtherPlayers,
+			Room:          room,
+		})
 	} else {
 		g.sendOutgoingMessages(&models.OutgoingMessageRequest{
-			PrimaryClient: currentPlayer.Client,
-			PrimaryMsg:    &msgToCurrentPlayer,
-			SecondaryMsg:  &msgToOtherPlayers,
+			PrimaryMsg:    &msgToOtherPlayers,
 			Room:          room,
 		})
 	}

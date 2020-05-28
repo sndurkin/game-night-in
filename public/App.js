@@ -10,6 +10,9 @@ import FishbowlGameScreen from './Fishbowl/FishbowlGameScreen.js';
 import FishbowlGameOverScreen from './Fishbowl/FishbowlGameOverScreen.js';
 import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
 
+import CodenamesRoomScreen from './Codenames/CodenamesRoomScreen.js';
+import CodenamesConstants from './Codenames/CodenamesConstants.js';
+
 
 let conn;
 class App extends Component {
@@ -49,6 +52,8 @@ class App extends Component {
         return this.fishbowlGameScreen;
       case FishbowlConstants.Screens.GAME_OVER:
         return this.fishbowlGameOverScreen;
+      case CodenamesConstants.Screens.ROOM:
+        return this.codenamesRoomScreen;
     }
 
     return null;
@@ -84,6 +89,9 @@ class App extends Component {
         `}
         ${screen === FishbowlConstants.Screens.GAME_OVER && html`
           <${FishbowlGameOverScreen} ref=${r => this.fishbowlGameOverScreen = r} ...${sharedProps} />
+        `}
+        ${screen === CodenamesConstants.Screens.ROOM && html`
+          <${CodenamesRoomScreen} ref=${r => this.codenamesRoomScreen = r} ...${sharedProps} />
         `}
       </div>
     `;

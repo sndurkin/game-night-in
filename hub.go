@@ -12,6 +12,7 @@ import (
 	"github.com/sndurkin/game-night-in/api"
 	"github.com/sndurkin/game-night-in/models"
 	"github.com/sndurkin/game-night-in/fishbowl"
+	"github.com/sndurkin/game-night-in/codenames"
 	"github.com/sndurkin/game-night-in/util"
 )
 
@@ -52,6 +53,13 @@ func (h *Hub) newGame(gameType string, room *models.GameRoom) interface{} {
 	switch (gameType) {
 	case "fishbowl":
 		return fishbowl.NewGame(
+			room,
+			&h.mutex,
+			h.sendOutgoingMessages,
+			h.sendErrorMessage,
+		)
+	case "codenames":
+		return codenames.NewGame(
 			room,
 			&h.mutex,
 			h.sendOutgoingMessages,
