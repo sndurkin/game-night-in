@@ -4,6 +4,7 @@ import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
 import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
+import CodenamesConstants from './Codenames/CodenamesConstants.js';
 
 
 export default class CreateGameScreen extends Component {
@@ -73,21 +74,32 @@ export default class CreateGameScreen extends Component {
         switch (data.body.gameType) {
           case 'fishbowl':
             this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
+            this.props.updateStoreData({
+              name: this.state.name,
+              isRoomOwner: true,
+              roomCode: data.body.roomCode,
+              gameType: data.body.gameType,
+              teams: [
+                [{ name: this.state.name, isRoomOwner: true }],
+              ],
+            });
             break;
           case 'codenames':
             this.props.transitionToScreen(CodenamesConstants.Screens.ROOM);
+            this.props.updateStoreData({
+              name: this.state.name,
+              isRoomOwner: true,
+              roomCode: data.body.roomCode,
+              gameType: data.body.gameType,
+              teams: [{
+                spymaster: {
+                  name: this.state.name,
+                  isRoomOwner: true
+                }
+              }, {}],
+            });
             break;
         }
-
-        this.props.updateStoreData({
-          name: this.state.name,
-          isRoomOwner: true,
-          roomCode: data.body.roomCode,
-          gameType: data.body.gameType,
-          teams: [
-            [{ name: this.state.name, isRoomOwner: true }],
-          ],
-        });
         break;
     }
   }

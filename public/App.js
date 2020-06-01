@@ -14,13 +14,15 @@ import CodenamesRoomScreen from './Codenames/CodenamesRoomScreen.js';
 import CodenamesConstants from './Codenames/CodenamesConstants.js';
 
 
-let conn;
 class App extends Component {
 
   constructor(...args) {
     super(...args);
 
     this.state = {
+      state: null,
+      conn: null,
+
       screen: Constants.Screens.HOME,
       game: {},
     };
@@ -30,12 +32,7 @@ class App extends Component {
   }
 
   componentDidMount() {
-    const { conn } = this.props;
-
-    conn.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      this.getActiveScreen().handleMessage(data, e);
-    };
+    this.connect();
   }
 
   getActiveScreen() {
@@ -56,12 +53,11 @@ class App extends Component {
         return this.codenamesRoomScreen;
     }
 
-    return null;
+    throw new Error('Screen not supported: ' + this.state.screen);
   }
 
   render() {
-    const { conn } = this.props;
-    const { screen, ...storeData } = this.state;
+    const { conn, state, screen, ...storeData } = this.state;
 
     const sharedProps = {
       conn: conn,
@@ -69,6 +65,16 @@ class App extends Component {
       updateStoreData: this.updateStoreData,
       transitionToScreen: this.transitionToScreen,
     };
+
+    if (state === 'disconnected') {
+      return html`
+        <div>
+          <h3>Oh no! We lost the connection to the server.</h3>
+          <p>Refresh and then try to rejoin with the same room code:</p>
+          <button onClick=${this.refresh}>Refresh</button>
+        </div>
+      `;
+    }
 
     return html`
       <div class="app">
@@ -94,6 +100,9 @@ class App extends Component {
           <${CodenamesRoomScreen} ref=${r => this.codenamesRoomScreen = r} ...${sharedProps} />
         `}
       </div>
+      ${state === 'connecting' ? html`
+        <div class="connecting" />
+      ` : null}
     `;
   }
 
@@ -108,6 +117,45 @@ class App extends Component {
   getStyle(screen) {
     return `display: ${this.state.screen === screen ? 'block' : 'none'}`;
   }
+
+  connect(reconnectAttemptNumber) {
+    reconnectAttemptNumber = reconnectAttemptNumber || 0;
+
+    const protocol = document.location.protocol === 'https:' ? 'wss' : 'ws';
+    const conn = new WebSocket(protocol + '://' + document.location.host + '/ws');
+
+    this.setState({
+      conn: conn,
+      state: 'connecting'
+    });
+
+    conn.onopen = () => {
+      reconnectAttemptNumber = 0;
+      this.setState({
+        state: 'connected'
+      });
+    };
+
+    conn.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      this.getActiveScreen().handleMessage(data, e);
+    };
+
+    conn.onclose = (e) => {
+      this.setState({
+        conn: null,
+        state: 'disconnected'
+      });
+
+      if (reconnectAttemptNumber < 3) {
+        this.connect(reconnectAttemptNumber + 1);
+      }
+    };
+  }
+
+  refresh() {
+    window.location.reload();
+  }
 }
 
 window.onload = function () {
@@ -118,25 +166,5 @@ window.onload = function () {
     return;
   }
 
-  const protocol = document.location.protocol === 'https:' ? 'wss' : 'ws';
-  conn = new WebSocket(protocol + '://' + document.location.host + '/ws');
-  conn.onclose = function (e) {
-    while (document.body.firstChild) {
-      document.body.removeChild(document.body.firstChild);
-    }
-
-    render(html`
-      <div>
-        <h3>Oh no! We lost the connection to the server.</h3>
-        <p>Refresh and then try to rejoin with the same room code:</p>
-        <button onClick=${refresh}>Refresh</button>
-      </div>
-    `, document.body);
-  };
-
-  render(html`<${App} conn=${conn} />`, document.body);
+  render(html`<${App} />`, document.body);
 };
-
-function refresh() {
-  window.location.reload();
-}

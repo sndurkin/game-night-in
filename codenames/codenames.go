@@ -199,13 +199,13 @@ func (g *Game) movePlayer(
 	req codenames_api.MovePlayerRequest,
 ) {
 	var roleName string
-	if req.ToTeamSpymasterRole {
+	if req.ToPlayerType == codenames_api.PlayerSpymaster {
 		roleName = "spymaster"
 	} else {
 		roleName = "guesser"
 	}
-	log.Printf("Move player request: %s from %d to %d (%s)\n", req.PlayerName,
-		req.FromTeam, req.ToTeam, roleName)
+	log.Printf("Move player request: %s to %d (%s)\n", req.PlayerName,
+		req.ToTeam, roleName)
 
 	var msg api.OutgoingMessage
 
@@ -221,7 +221,7 @@ func (g *Game) movePlayer(
 		return
 	}
 
-	if req.FromTeam >= len(g.teams) || req.ToTeam >= len(g.teams) {
+	if req.ToTeam < 0 || req.ToTeam >= len(g.teams) {
 		msg.Event = "error"
 		msg.Error = "The team indexes are invalid."
 		g.sendOutgoingMessages(&models.OutgoingMessageRequest{
@@ -231,18 +231,32 @@ func (g *Game) movePlayer(
 		return
 	}
 
-	fromTeam := g.teams[req.FromTeam]
-	var playerToMove *models.Player
-	if fromTeam.spymaster != nil && fromTeam.spymaster.Name == req.PlayerName {
-		playerToMove = fromTeam.spymaster
-		fromTeam.spymaster = nil
-	} else if fromTeam.guesser != nil && fromTeam.guesser.Name == req.PlayerName {
-		playerToMove = fromTeam.guesser
-		fromTeam.guesser = nil
+	toTeam := g.teams[req.ToTeam]
+	var playerToSwitchWith *models.Player
+	if req.ToPlayerType == codenames_api.PlayerSpymaster {
+		if toTeam.spymaster != nil {
+			playerToSwitchWith = toTeam.spymaster
+		}
+	} else {
+		if toTeam.guesser != nil {
+			playerToSwitchWith = toTeam.guesser
+		}
 	}
 
-	toTeam := g.teams[req.ToTeam]
-	if req.ToTeamSpymasterRole {
+	var playerToMove *models.Player
+	for _, team := range g.teams {
+		if team.spymaster != nil && team.spymaster.Name == req.PlayerName {
+			playerToMove = team.spymaster
+			team.spymaster = playerToSwitchWith
+			break
+		} else if team.guesser != nil && team.guesser.Name == req.PlayerName {
+			playerToMove = team.guesser
+			team.guesser = playerToSwitchWith
+			break
+		}
+	}
+
+	if req.ToPlayerType == codenames_api.PlayerSpymaster {
 		toTeam.spymaster = playerToMove
 	} else {
 		toTeam.guesser = playerToMove

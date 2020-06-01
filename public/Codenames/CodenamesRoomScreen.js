@@ -20,6 +20,7 @@ export default class CodenamesRoomScreen extends Component {
       showMovePlayerModal: false,
       playerToMove: null,
       teamIdxToMoveFrom: null,
+      playerTypeToMoveFrom: null,
     };
 
     this.openChangeSettings = this.openChangeSettings.bind(this);
@@ -170,7 +171,9 @@ export default class CodenamesRoomScreen extends Component {
 
   renderRoom() {
     const { isRoomOwner } = this.props;
-    const { showMovePlayerModal, teamIdxToMoveFrom } = this.state;
+    const {
+      showMovePlayerModal, teamIdxToMoveFrom, playerTypeToMoveFrom
+    } = this.state;
     const teams = this.props.teams || [];
 
     return html`
@@ -182,32 +185,46 @@ export default class CodenamesRoomScreen extends Component {
             </div>
             <div class="team-table">
               <div class="team-row">
-                <div class="player-type">
-                  Spymaster
+                <div class="codenames-player">
+                  <div class="player-type">
+                    Spymaster
+                  </div>
+                  <div class="player-name">
+                    ${team.spymaster ? team.spymaster.name : html`
+                      <span class="player-none">(none)</span>
+                    `}
+                  </div>
                 </div>
-                <div class="player-name">
-                  ${team.spymaster ? team.spymaster.name : 'None'}
-                </div>
-                ${isRoomOwner ? html`
-                  <a onClick=${() => this.showMovePlayerModal(idx, player)}>
+                ${isRoomOwner && team.spymaster ? html`
+                  <a
+                    class="codenames-move"
+                    onClick=${() => this.showMovePlayerModal(team.spymaster, idx, CodenamesConstants.PlayerType.SPYMASTER)}
+                  >
                     Move
                   </a>
-                ` : player.isRoomOwner ? html`
+                ` : team.spymaster && team.spymaster.isRoomOwner ? html`
                   <div>Owner</div>
                 ` : ''}
               </div>
               <div class="team-row">
-                <div class="player-type">
-                  Guesser
+                <div class="codenames-player">
+                  <div class="player-type">
+                    Guesser
+                  </div>
+                  <div class="player-name">
+                    ${team.guesser ? team.guesser.name : html`
+                      <span class="player-none">(none)</span>
+                    `}
+                  </div>
                 </div>
-                <div class="player-name">
-                  ${team.guesser ? team.guesser.name : 'None'}
-                </div>
-                ${isRoomOwner ? html`
-                  <a onClick=${() => this.showMovePlayerModal(idx, player)}>
+                ${isRoomOwner && team.guesser ? html`
+                  <a
+                    class="codenames-move"
+                    onClick=${() => this.showMovePlayerModal(team.guesser, idx, CodenamesConstants.PlayerType.GUESSER)}
+                  >
                     Move
                   </a>
-                ` : player.isRoomOwner ? html`
+                ` : team.guesser && team.guesser.isRoomOwner ? html`
                   <div>Owner</div>
                 ` : ''}
               </div>
@@ -241,14 +258,21 @@ export default class CodenamesRoomScreen extends Component {
     </header>
     <section class="content">
       ${teams.map((_, idx) => html`
-              <span
-                class="button stack"
-                disabled=${teamIdxToMoveFrom === idx}
-                onClick=${() => { teamIdxToMoveFrom !== idx && this.movePlayer({ teamIdxToMoveTo: idx }); }}
-              >
-                Team ${idx + 1}
-              </span>
-            `)}
+        <span
+          class="button stack"
+          disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.SPYMASTER}
+          onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.SPYMASTER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.SPYMASTER }); }}
+        >
+          Team ${idx + 1} • Spymaster
+        </span>
+        <span
+          class="button stack"
+          disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.GUESSER}
+          onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.GUESSER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.GUESSER }); }}
+        >
+          Team ${idx + 1} • Guesser
+        </span>
+      `)}
     </section>
     <footer></footer>
   </article>
@@ -320,33 +344,25 @@ export default class CodenamesRoomScreen extends Component {
     });
   }
 
-  showMovePlayerModal(teamIdx, player) {
+  showMovePlayerModal(player, teamIdxToMoveFrom, playerTypeToMoveFrom) {
     const { teams } = this.props;
-    if (teams.length === 2) {
-      // If there are only 2 teams, don't bother showing the modal.
-      this.movePlayer({
-        name: player.name,
-        teamIdxToMoveFrom: teamIdx,
-        teamIdxToMoveTo: teamIdx === 0 ? 1 : 0,
-      });
-      return;
-    }
 
     this.setState({
       showMovePlayerModal: true,
       playerToMove: player,
-      teamIdxToMoveFrom: teamIdx,
+      teamIdxToMoveFrom: teamIdxToMoveFrom,
+      playerTypeToMoveFrom: playerTypeToMoveFrom,
     });
   }
 
-  movePlayer({ name, teamIdxToMoveFrom, teamIdxToMoveTo }) {
+  movePlayer({ name, teamIdxToMoveTo, playerTypeToMoveTo }) {
     const { conn } = this.props;
     conn.send(JSON.stringify({
       action: CodenamesConstants.Actions.MOVE_PLAYER,
       body: {
         playerName: typeof name !== 'undefined' ? name : this.state.playerToMove.name,
-        fromTeam: typeof teamIdxToMoveFrom !== 'undefined' ? teamIdxToMoveFrom : this.state.teamIdxToMoveFrom,
         toTeam: teamIdxToMoveTo,
+        toPlayerType: playerTypeToMoveTo
       },
     }));
 
@@ -354,6 +370,7 @@ export default class CodenamesRoomScreen extends Component {
       showMovePlayerModal: false,
       playerToMove: null,
       teamIdxToMoveFrom: null,
+      playerTypeToMoveTo: null,
     });
   }
 

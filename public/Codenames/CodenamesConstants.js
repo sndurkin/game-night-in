@@ -20,4 +20,9 @@ export default {
   Game: {
 
   },
+  PlayerType: {
+    INVALID: 0,
+    SPYMASTER: 1,
+    GUESSER: 2,
+  }
 };

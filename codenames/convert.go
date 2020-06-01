@@ -34,8 +34,12 @@ func convertTeamToAPITeam(team *team) codenames_api.Team {
 	}
 }
 
-func convertPlayerToAPIPlayer(player *models.Player) codenames_api.Player {
-	return codenames_api.Player{
+func convertPlayerToAPIPlayer(player *models.Player) *codenames_api.Player {
+	if player == nil {
+		return nil
+	}
+
+	return &codenames_api.Player{
 		Name: player.Name,
 		IsRoomOwner: player.IsRoomOwner,
 	}

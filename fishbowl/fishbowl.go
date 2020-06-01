@@ -446,17 +446,18 @@ func (g *Game) Join(
 	newPlayerJoined bool,
 	req api.JoinGameRequest,
 ) {
+	if !newPlayerJoined {
+		// Only the player's connection was updated, a new player has not joined.
+		log.Printf("Sending game message because new player has not joined\n")
+		g.sendUpdatedGameMessages(nil)
+		return
+	}
+
 	if g.state != "waiting-room" {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
 			Error:  "You cannot join a game that has already started.",
 		})
-		return
-	}
-
-	if !newPlayerJoined {
-		// Only the player's connection was updated, a new player has not joined.
-		g.sendUpdatedGameMessages(nil)
 		return
 	}
 
@@ -633,6 +634,10 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	var msgToCurrentPlayer api.OutgoingMessage
 	msgToCurrentPlayer.Event = api.Event[api.EventUpdatedGame]
 	msgToCurrentPlayer.Body = fishbowl_api.UpdatedGameEvent{
+		GameType:              room.GameType,
+		Teams:                 convertTeamsToAPITeams(g.teams),
+		Settings:              convertSettingsToAPISettings(g.settings),
+
 		State:                 g.state,
 		LastCardGuessed:       g.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
@@ -651,6 +656,10 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	var msgToOtherPlayers api.OutgoingMessage
 	msgToOtherPlayers.Event = api.Event[api.EventUpdatedGame]
 	msgToOtherPlayers.Body = fishbowl_api.UpdatedGameEvent{
+		GameType:              room.GameType,
+		Teams:                 convertTeamsToAPITeams(g.teams),
+		Settings:              convertSettingsToAPISettings(g.settings),
+
 		State:                 g.state,
 		LastCardGuessed:       g.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,

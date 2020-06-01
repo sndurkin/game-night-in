@@ -170,7 +170,7 @@ export default class FishbowlRoomScreen extends Component {
           <input
             ref=${r => this.inputRef = r}
             type="text"
-            maxlength="20"
+            maxlength="60"
             value="${wordBeingEntered}"
             placeholder="Enter a word or phrase"
             onInput=${this.onWordChange} />

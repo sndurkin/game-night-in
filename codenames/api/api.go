@@ -1,6 +1,7 @@
 package api
 
 type ActionT int
+type PlayerT int
 
 // Player holds all the relevant information about a specific player
 // in a game room.
@@ -11,8 +12,8 @@ type Player struct {
 
 // Team holds the information about a specific team.
 type Team struct {
-	Spymaster   Player `json:"spymaster"`
-	Guesser     Player `json:"guesser"`
+	Spymaster   *Player `json:"spymaster"`
+	Guesser     *Player `json:"guesser"`
 	CardIndices []int  `json:"cardIndices"`
 }
 
@@ -27,10 +28,9 @@ type GameSettings struct {
 // MovePlayerRequest is used by the owner of a room to move a player
 // from one team to another.
 type MovePlayerRequest struct {
-	PlayerName          string `json:"playerName"`
-	FromTeam            int    `json:"fromTeam"`
-	ToTeam              int    `json:"toTeam"`
-	ToTeamSpymasterRole bool   `json:"toTeamSpymasterRole"`
+	PlayerName          string  `json:"playerName"`
+	ToTeam              int     `json:"toTeam"`
+	ToPlayerType        PlayerT `json:"toPlayerType"`
 }
 
 // ChangeSettingsRequest is used by the owner of a room to change
@@ -84,6 +84,13 @@ const (
 	ActionChangeSettings
 	ActionStartTurn
 	ActionEndTurn
+)
+
+const (
+	// Player types
+	PlayerInvalid = iota
+	PlayerSpymaster
+	PlayerGuesser
 )
 
 var (

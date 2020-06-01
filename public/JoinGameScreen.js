@@ -4,6 +4,7 @@ import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
 import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
+import CodenamesConstants from './Codenames/CodenamesConstants.js';
 
 
 export default class JoinGameScreen extends Component {
@@ -76,16 +77,33 @@ export default class JoinGameScreen extends Component {
       roomCode: this.state.roomCode,
     };
 
-    // Set isRoomOwner in case the current client is the room owner
-    // and rejoining a game.
-    if (data.body.teams) {
-      for (let players of data.body.teams) {
-        const player = players.find(p => p.name === this.state.name);
-        if (player) {
-          sharedProps.isRoomOwner = player.isRoomOwner;
-          break;
+    switch (data.body.gameType) {
+      case 'fishbowl':
+        // Set isRoomOwner in case the current client is the room owner
+        // and rejoining a game.
+        if (data.body.teams) {
+          for (let players of data.body.teams) {
+            const player = players.find(p => p.name === this.state.name);
+            if (player) {
+              sharedProps.isRoomOwner = player.isRoomOwner;
+              break;
+            }
+          }
         }
-      }
+        break;
+      case 'codenames':
+        // Set isRoomOwner in case the current client is the room owner
+        // and rejoining a game.
+        if (data.body.teams) {
+          for (let team of data.body.teams) {
+            if (team.spymaster && team.spymaster.name === this.state.name) {
+              sharedProps.isRoomOwner = team.spymaster.isRoomOwner;
+            } else if (team.guesser && team.guesser.name === this.state.name) {
+              sharedProps.isRoomOwner = team.guesser.isRoomOwner;
+            }
+          }
+        }
+        break;
     }
 
     switch (data.event) {
@@ -96,15 +114,33 @@ export default class JoinGameScreen extends Component {
           settings: data.body.settings,
           teams: data.body.teams,
         });
-        this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
+
+        switch (data.body.gameType) {
+          case 'fishbowl':
+            this.props.transitionToScreen(FishbowlConstants.Screens.ROOM);
+            break;
+          case 'codenames':
+            this.props.transitionToScreen(CodenamesConstants.Screens.ROOM);
+            break;
+        }
         break;
       case Constants.Events.UPDATED_GAME:
         this.props.updateStoreData({
           ...sharedProps,
+          gameType: data.body.gameType,
           teams: data.body.teams,
+          settings: data.body.settings,
           game: data.body,
         });
-        this.props.transitionToScreen(FishbowlConstants.Screens.GAME);
+
+        switch (data.body.gameType) {
+          case 'fishbowl':
+            this.props.transitionToScreen(FishbowlConstants.Screens.GAME);
+            break;
+          case 'codenames':
+            this.props.transitionToScreen(CodenamesConstants.Screens.GAME);
+            break;
+        }
         break;
     }
   }

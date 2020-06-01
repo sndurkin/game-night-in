@@ -14,6 +14,16 @@ a {
   cursor: pointer;
 }
 
+.connecting {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #999;
+  opacity: 0.5;
+}
+
 .app {
   width: 100%;
   height: 100%;
@@ -196,6 +206,20 @@ label {
   overflow: hidden;
   white-space: nowrap;
   padding-right: 0.5em;
+}
+
+.player-none {
+  color: #999;
+}
+
+.codenames-player {
+  flex: 1;
+}
+.codenames-player .player-type {
+  color: #bbb;
+}
+.codenames-move {
+  align-self: flex-end;
 }
 
 .team-score {
