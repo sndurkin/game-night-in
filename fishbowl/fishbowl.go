@@ -29,6 +29,7 @@ type Game struct {
 
 	state                 string
 	turnJustStarted       bool
+	turnContinued         bool
 	cardsInRound          []string
 	currentServerTime     int64
 	timer                 *time.Timer
@@ -270,7 +271,9 @@ func (g *Game) startTurn(
 
 	g.numCardsGuessedInTurn = 0
 	g.lastCardGuessed = ""
-	g.timerLength = g.settings.timerLength + 1
+	if !g.turnContinued {
+		g.timerLength = g.settings.timerLength + 2
+	}
 	g.currentServerTime = time.Now().UnixNano() / 1000000
 	if g.timer != nil {
 		g.timer.Stop()
@@ -292,6 +295,7 @@ func (g *Game) startTurn(
 		log.Println(" - lock obtained")
 
 		g.timer = nil
+		g.turnContinued = false
 
 		log.Printf("Game state when timer ended: %s\n", g.state)
 		if !g.validateStateTransition(g.state, "turn-start") {
@@ -372,6 +376,11 @@ func (g *Game) changeCard(
 
 		if len(g.cardsInRound) == 0 {
 			if g.timer != nil {
+				startTime := time.Unix(g.currentServerTime / 1000,
+					(g.currentServerTime % 1000) * 1000000)
+				g.timerLength = g.timerLength - int(time.Since(startTime).Seconds())
+				log.Printf("new timerLength: %d\n", g.timerLength)
+				g.turnContinued = true
 				g.timer.Stop()
 			}
 
@@ -381,13 +390,9 @@ func (g *Game) changeCard(
 				g.state = "turn-start"
 
 				g.reshuffleCardsForRound()
-				g.moveToNextPlayerAndTeam()
-
-				// Each round should start with a different team.
-				//
-				// TODO: The teams should be re-ordered based on score.
-				g.currentlyPlayingTeam = util.GetRandomNumberInRange(0,
-					len(g.teams)-1)
+				if !g.turnContinued {
+					g.moveToNextPlayerAndTeam()
+				}
 			} else {
 				g.state = "game-over" // TODO: update to use constant from api.go
 
