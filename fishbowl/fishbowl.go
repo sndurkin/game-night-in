@@ -124,7 +124,11 @@ func (g *Game) HandleIncomingMessage(
 		}
 		g.addTeam(player, req)
 	case fishbowl_api.ActionRemoveTeam:
-		// TODO
+		var req fishbowl_api.RemoveTeamRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Fatal(err)
+		}
+		g.removeTeam(player, req)
 	case fishbowl_api.ActionMovePlayer:
 		var req fishbowl_api.MovePlayerRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -179,6 +183,40 @@ func (g *Game) addTeam(
 	}
 
 	g.teams = append(g.teams, []*models.Player{})
+	g.sendUpdatedGameMessages(player.Client)
+}
+
+func (g *Game) removeTeam(
+	player *models.Player,
+	req fishbowl_api.RemoveTeamRequest,
+) {
+	log.Printf("Remove team request: %d\n", req.Team)
+
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	_, err := g.performRoomChecks(player, true, false)
+	if err != nil {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  err.Error(),
+		})
+		return
+	}
+
+	if req.Team < 2 || req.Team >= len(g.teams) {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  "That is not a valid team to remove.",
+		})
+		return
+	}
+
+	g.teams[req.Team - 1] = append(g.teams[req.Team - 1],
+		g.teams[req.Team]...)
+
+	g.teams = append(g.teams[:req.Team], g.teams[req.Team+1:]...)
+
 	g.sendUpdatedGameMessages(nil)
 }
 
@@ -379,7 +417,6 @@ func (g *Game) changeCard(
 				startTime := time.Unix(g.currentServerTime / 1000,
 					(g.currentServerTime % 1000) * 1000000)
 				g.timerLength = g.timerLength - int(time.Since(startTime).Seconds())
-				log.Printf("new timerLength: %d\n", g.timerLength)
 				g.turnContinued = true
 				g.timer.Stop()
 			}
@@ -437,7 +474,8 @@ func (g *Game) AddPlayer(player *models.Player) {
 	msg.Body = fishbowl_api.CreatedGameEvent{
 		GameType: g.room.GameType,
 		RoomCode: g.room.RoomCode,
-		Team:     0,
+		Teams:    convertTeamsToAPITeams(g.teams),
+		Settings: convertSettingsToAPISettings(g.settings),
 	}
 
 	g.sendOutgoingMessages(&models.OutgoingMessageRequest{
@@ -454,7 +492,7 @@ func (g *Game) Join(
 	if !newPlayerJoined {
 		// Only the player's connection was updated, a new player has not joined.
 		log.Printf("Sending game message because new player has not joined\n")
-		g.sendUpdatedGameMessages(nil)
+		g.sendUpdatedGameMessages(player.Client)
 		return
 	}
 
@@ -475,8 +513,7 @@ func (g *Game) Join(
 	}
 
 	g.teams[0] = append(g.teams[0], player)
-
-	g.sendUpdatedGameMessages(nil)
+	g.sendUpdatedGameMessages(player.Client)
 }
 
 // Start starts the game.
@@ -606,10 +643,11 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		log.Printf("Sending out updated room messages\n")
 
 		if justJoinedClient != nil {
-			log.Printf("models.Player just rejoined, sending updated-room event\n")
+			//log.Printf("Player just rejoined, sending updated-room event\n")
 			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
 				PrimaryMsg:    &msg,
+				SecondaryMsg:  &msg,
 				Room:          room,
 			})
 		} else {
@@ -638,11 +676,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 
 	var msgToCurrentPlayer api.OutgoingMessage
 	msgToCurrentPlayer.Event = api.Event[api.EventUpdatedGame]
-	msgToCurrentPlayer.Body = fishbowl_api.UpdatedGameEvent{
-		GameType:              room.GameType,
-		Teams:                 convertTeamsToAPITeams(g.teams),
-		Settings:              convertSettingsToAPISettings(g.settings),
-
+	updatedGameEvent := fishbowl_api.UpdatedGameEvent{
 		State:                 g.state,
 		LastCardGuessed:       g.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
@@ -657,14 +691,17 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		CurrentPlayers:        g.currentPlayers,
 		CurrentlyPlayingTeam:  g.currentlyPlayingTeam,
 	}
+	if justJoinedClient != nil {
+		updatedGameEvent.GameType = room.GameType
+		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
+		updatedGameEvent.Settings = convertSettingsToAPISettings(
+			g.settings)
+	}
+	msgToCurrentPlayer.Body = updatedGameEvent
 
 	var msgToOtherPlayers api.OutgoingMessage
 	msgToOtherPlayers.Event = api.Event[api.EventUpdatedGame]
-	msgToOtherPlayers.Body = fishbowl_api.UpdatedGameEvent{
-		GameType:              room.GameType,
-		Teams:                 convertTeamsToAPITeams(g.teams),
-		Settings:              convertSettingsToAPISettings(g.settings),
-
+	updatedGameEvent = fishbowl_api.UpdatedGameEvent{
 		State:                 g.state,
 		LastCardGuessed:       g.lastCardGuessed,
 		CurrentServerTime:     currentServerTime,
@@ -678,6 +715,13 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		CurrentPlayers:        g.currentPlayers,
 		CurrentlyPlayingTeam:  g.currentlyPlayingTeam,
 	}
+	if justJoinedClient != nil {
+		updatedGameEvent.GameType = room.GameType
+		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
+		updatedGameEvent.Settings = convertSettingsToAPISettings(
+			g.settings)
+	}
+	msgToOtherPlayers.Body = updatedGameEvent
 
 	if justJoinedClient != nil {
 		var justJoinedPlayer *models.Player
@@ -691,18 +735,12 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		log.Printf("Player %s just rejoined, sending updated-game event\n",
 			justJoinedPlayer.Name)
 		if currentPlayer.Client == justJoinedClient {
-			updatedGameEvent := msgToCurrentPlayer.Body.(fishbowl_api.UpdatedGameEvent)
-			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
-			msgToCurrentPlayer.Body = updatedGameEvent
 			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
 				PrimaryMsg:    &msgToCurrentPlayer,
 				Room:          room,
 			})
 		} else {
-			updatedGameEvent := msgToOtherPlayers.Body.(fishbowl_api.UpdatedGameEvent)
-			updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
-			msgToOtherPlayers.Body = updatedGameEvent
 			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
 				PrimaryClient: justJoinedClient,
 				PrimaryMsg:    &msgToOtherPlayers,

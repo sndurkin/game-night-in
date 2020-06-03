@@ -3,6 +3,7 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import ScreenWrapper from './ScreenWrapper.js';
 import Constants from './Constants.js';
 
+import FishbowlUtils from './Fishbowl/FishbowlUtils.js';
 import FishbowlConstants from './Fishbowl/FishbowlConstants.js';
 import CodenamesConstants from './Codenames/CodenamesConstants.js';
 
@@ -82,13 +83,9 @@ export default class JoinGameScreen extends Component {
         // Set isRoomOwner in case the current client is the room owner
         // and rejoining a game.
         if (data.body.teams) {
-          for (let players of data.body.teams) {
-            const player = players.find(p => p.name === this.state.name);
-            if (player) {
-              sharedProps.isRoomOwner = player.isRoomOwner;
-              break;
-            }
-          }
+          const player = FishbowlUtils.getPlayerByName(data.body.teams,
+            this.state.name);
+          Object.assign(sharedProps, player);
         }
         break;
       case 'codenames':

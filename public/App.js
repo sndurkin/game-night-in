@@ -3,6 +3,7 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import HomeScreen from './HomeScreen.js';
 import CreateGameScreen from './CreateGameScreen.js';
 import JoinGameScreen from './JoinGameScreen.js';
+import Connection from './Connection.js';
 import Constants from './Constants.js';
 
 import FishbowlRoomScreen from './Fishbowl/FishbowlRoomScreen.js';
@@ -32,7 +33,29 @@ class App extends Component {
   }
 
   componentDidMount() {
-    this.connect();
+    const conn = new Connection({
+      onConnecting: () => {
+        this.setState({
+          state: 'connecting'
+        });
+      },
+      onConnect: () => {
+        this.setState({
+          conn: conn,
+          state: 'connected'
+        });
+      },
+      onMessage: (data, e) => {
+        this.getActiveScreen().handleMessage(data, e);
+      },
+      onDisconnect: () => {
+        this.setState({
+          conn: null,
+          state: 'disconnected'
+        });
+      },
+    });
+    conn.connect();
   }
 
   getActiveScreen() {
@@ -100,7 +123,7 @@ class App extends Component {
           <${CodenamesRoomScreen} ref=${r => this.codenamesRoomScreen = r} ...${sharedProps} />
         `}
       </div>
-      ${state === 'connecting' ? html`
+      ${state !== 'connected' ? html`
         <div class="connecting" />
       ` : null}
     `;
@@ -121,36 +144,7 @@ class App extends Component {
   connect(reconnectAttemptNumber) {
     reconnectAttemptNumber = reconnectAttemptNumber || 0;
 
-    const protocol = document.location.protocol === 'https:' ? 'wss' : 'ws';
-    const conn = new WebSocket(protocol + '://' + document.location.host + '/ws');
-
-    this.setState({
-      conn: conn,
-      state: 'connecting'
-    });
-
-    conn.onopen = () => {
-      reconnectAttemptNumber = 0;
-      this.setState({
-        state: 'connected'
-      });
-    };
-
-    conn.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      this.getActiveScreen().handleMessage(data, e);
-    };
-
-    conn.onclose = (e) => {
-      this.setState({
-        conn: null,
-        state: 'disconnected'
-      });
-
-      if (reconnectAttemptNumber < 3) {
-        this.connect(reconnectAttemptNumber + 1);
-      }
-    };
+    conn.connect();
   }
 
   refresh() {

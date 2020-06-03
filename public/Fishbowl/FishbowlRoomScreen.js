@@ -4,6 +4,7 @@ import ScreenWrapper from '../ScreenWrapper.js';
 import Utils from '../Utils.js';
 import Constants from '../Constants.js';
 
+import FishbowlUtils from './FishbowlUtils.js';
 import FishbowlConstants from './FishbowlConstants.js';
 
 
@@ -38,6 +39,7 @@ export default class FishbowlRoomScreen extends Component {
 
       changedSettings: null,
 
+      enteringWords: false,
       wordBeingEntered: '',
       words: document.location.protocol === 'https:' ? [] : getWords(5),
 
@@ -48,6 +50,7 @@ export default class FishbowlRoomScreen extends Component {
 
     this.onWordChange = this.onWordChange.bind(this);
     this.addWord = this.addWord.bind(this);
+    this.enterWords = this.enterWords.bind(this);
     this.submitWords = this.submitWords.bind(this);
     this.openChangeSettings = this.openChangeSettings.bind(this);
     this.closeChangeSettings = this.closeChangeSettings.bind(this);
@@ -58,6 +61,7 @@ export default class FishbowlRoomScreen extends Component {
     this.saveSettings = this.saveSettings.bind(this);
 
     this.addTeam = this.addTeam.bind(this);
+    this.removeTeam = this.removeTeam.bind(this);
     this.movePlayer = this.movePlayer.bind(this);
     this.startGame = this.startGame.bind(this);
   }
@@ -76,7 +80,7 @@ export default class FishbowlRoomScreen extends Component {
 
   render() {
     const { name, teams } = this.props;
-    const { changedSettings, error } = this.state;
+    const { changedSettings, enteringWords, error } = this.state;
 
     if (changedSettings) {
       return this.renderChangeSettingsDialog();
@@ -91,7 +95,7 @@ export default class FishbowlRoomScreen extends Component {
           ${error && html`
             <span class="label error">${error}</span>
           `}
-          ${!this.player.wordsSubmitted ? this.renderSubmitWords() : this.renderRoom()}
+          ${enteringWords ? this.renderEnterWords() : this.renderRoom()}
         </div>
       <//>
     `;
@@ -160,7 +164,7 @@ export default class FishbowlRoomScreen extends Component {
     `;
   }
 
-  renderSubmitWords() {
+  renderEnterWords() {
     const { words, wordBeingEntered } = this.state;
 
     return html`
@@ -214,8 +218,16 @@ export default class FishbowlRoomScreen extends Component {
       <div class="teams">
         ${teams.map((team, idx) => html`
           <div class="team">
-            <div class="team-title" style=${Utils.teamStyle(idx)}>
-              Team ${idx + 1}
+            <div class="team-header" style=${Utils.teamStyle(idx)}>
+              <div class="team-title">Team ${idx + 1}</div>
+              ${idx >= 2 ? html`
+                <button
+                  class="team-remove pseudo"
+                  onClick=${() => this.removeTeam(idx)}
+                >
+                  ✖
+                </button>
+              ` : null}
             </div>
             <div class="team-table">
               ${(team || []).length === 0 ? html`
@@ -240,23 +252,14 @@ export default class FishbowlRoomScreen extends Component {
             </table>
           </div>
         `)}
+        <button
+          onClick=${this.addTeam}
+          disabled=${teams.length >= FishbowlConstants.Game.MAX_TEAMS}
+        >
+          Add team
+        </button>
       </div>
-      ${isRoomOwner ? html`
-        <div class="button-bar">
-          <button
-            onClick=${this.addTeam}
-            disabled=${teams.length >= FishbowlConstants.Game.MAX_TEAMS}
-          >
-            Add team
-          </button>
-          <div></div>
-          <button
-            disabled=${!this.canStartGame}
-            onClick=${this.startGame}>
-            Start game
-          </button>
-        </div>
-      ` : this.waitingMessage}
+      ${this.renderButtonBar()}
       <div class="modal">
         <input
           id="move-player-modal"
@@ -301,7 +304,34 @@ export default class FishbowlRoomScreen extends Component {
           ` : null}
         </div>
         <div><span>${timerStr}, ${roundsStr}</span></div>
-      </div >
+      </div>
+    `;
+  }
+
+  renderButtonBar() {
+    const { isRoomOwner, wordsSubmitted } = this.props;
+
+    return html`
+      <div>
+        <div>${this.waitingMessage}</div>
+        <div class="button-bar">
+          <button
+            onClick=${this.enterWords}
+            class=${wordsSubmitted ? 'pseudo' : ''}
+          >
+            ${!wordsSubmitted ? 'Enter words' : 'Edit words'}
+          </button>
+          <div></div>
+          ${isRoomOwner ? html`
+            <button
+              disabled=${!this.canStartGame}
+              onClick=${this.startGame}
+            >
+              Start game
+            </button>
+          ` : null}
+        </div>
+      </div>
     `;
   }
 
@@ -312,7 +342,16 @@ export default class FishbowlRoomScreen extends Component {
 
     switch (data.event) {
       case Constants.Events.UPDATED_ROOM:
+        const playerProps = {};
+
+        if (data.body.teams) {
+          const player = FishbowlUtils.getPlayerByName(data.body.teams,
+            this.props.name);
+          Object.assign(playerProps, player);
+        }
+
         this.props.updateStoreData({
+          ...playerProps,
           teams: data.body.teams,
           settings: data.body.settings,
         });
@@ -409,7 +448,17 @@ export default class FishbowlRoomScreen extends Component {
     });
   }
 
+  enterWords() {
+    this.setState({
+      enteringWords: true
+    });
+  }
+
   submitWords() {
+    this.setState({
+      enteringWords: false
+    });
+
     const { conn } = this.props;
     conn.send(JSON.stringify({
       action: FishbowlConstants.Actions.SUBMIT_WORDS,
@@ -436,6 +485,16 @@ export default class FishbowlRoomScreen extends Component {
     conn.send(JSON.stringify({
       action: FishbowlConstants.Actions.ADD_TEAM,
       body: {},
+    }));
+  }
+
+  removeTeam(idx) {
+    const { conn } = this.props;
+    conn.send(JSON.stringify({
+      action: FishbowlConstants.Actions.REMOVE_TEAM,
+      body: {
+        team: idx,
+      },
     }));
   }
 

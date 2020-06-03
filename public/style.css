@@ -175,10 +175,21 @@ label {
   align-self: flex-start;
 }
 
+.team-header {
+  display: flex;
+  align-items: center;
+  padding: 0 1em 0 1.75em;
+  border-left: 0.25em solid #000;
+  height: 2.25em;
+}
+
 .team-title {
   font-weight: bold;
-  padding: 0.25em 2em 0.25em 1.75em;
-  border-left: 0.25em solid #000;
+  flex: 1;
+}
+
+.team-remove {
+  margin: 0;
 }
 
 .team-table {

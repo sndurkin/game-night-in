@@ -7,6 +7,7 @@ export default {
   Actions: {
     SUBMIT_WORDS: 'submit-words',
     ADD_TEAM: 'add-team',
+    REMOVE_TEAM: 'remove-team',
     MOVE_PLAYER: 'move-player',
     CHANGE_SETTINGS: 'change-settings',
 

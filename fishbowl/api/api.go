@@ -38,7 +38,9 @@ type AddTeamRequest struct{}
 
 // RemoveTeamRequest is used by the owner of a room to remove a
 // team from the game.
-type RemoveTeamRequest struct{}
+type RemoveTeamRequest struct{
+	Team int `json:"team"`
+}
 
 // ChangeSettingsRequest is used by the owner of a room to change
 // the game settings.
@@ -59,9 +61,10 @@ type ChangeCardRequest struct {
 // CreatedGameEvent is an event that is sent to a player
 // when they create a new game room.
 type CreatedGameEvent struct {
-	RoomCode string `json:"roomCode"`
-	GameType string `json:"gameType"`
-	Team     int    `json:"team"`
+	RoomCode string       `json:"roomCode"`
+	GameType string       `json:"gameType"`
+	Teams    [][]Player   `json:"teams"`
+	Settings GameSettings `json:"settings"`
 }
 
 // UpdatedRoomEvent is an event that is sent to all players
