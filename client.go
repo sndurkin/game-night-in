@@ -42,6 +42,10 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	// Requested room & player name
+	roomCode   string
+	playerName string
 }
 
 // ClientMessage represents a single message from a client.
@@ -132,7 +136,15 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{
+		hub:  hub,
+		conn: conn,
+		send: make(chan []byte, 256),
+
+		playerName: r.URL.Query().Get("name"),
+		roomCode:   r.URL.Query().Get("roomCode"),
+	}
+
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

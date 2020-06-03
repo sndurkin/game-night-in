@@ -371,8 +371,7 @@ export default class FishbowlRoomScreen extends Component {
       this.setState({
         changedSettings: newSettings,
       });
-    }
-    catch (e) {
+    } catch (e) {
       // Ignore
     }
   }
@@ -419,8 +418,9 @@ export default class FishbowlRoomScreen extends Component {
   }
 
   addWord() {
-    const { words, wordBeingEntered } = this.state;
+    const { words } = this.state;
 
+    const wordBeingEntered = this.state.wordBeingEntered.trim();
     if (!wordBeingEntered) {
       return;
     }
@@ -450,13 +450,13 @@ export default class FishbowlRoomScreen extends Component {
 
   enterWords() {
     this.setState({
-      enteringWords: true
+      enteringWords: true,
     });
   }
 
   submitWords() {
     this.setState({
-      enteringWords: false
+      enteringWords: false,
     });
 
     const { conn } = this.props;

@@ -169,6 +169,8 @@ export default class JoinGameScreen extends Component {
 
     localStorage.setItem(Constants.LocalStorage.PLAYER_NAME, trimmedName);
     localStorage.setItem(Constants.LocalStorage.ROOM_CODE, roomCode);
+    window.top.SessionStorage[Constants.LocalStorage.PLAYER_NAME] = trimmedName;
+    window.top.SessionStorage[Constants.LocalStorage.ROOM_CODE] = roomCode;
 
     conn.send(JSON.stringify({
       action: Constants.Actions.JOIN_GAME,

@@ -15,6 +15,8 @@ import CodenamesRoomScreen from './Codenames/CodenamesRoomScreen.js';
 import CodenamesConstants from './Codenames/CodenamesConstants.js';
 
 
+window.top.SessionStorage = {};
+
 class App extends Component {
 
   constructor(...args) {
@@ -36,13 +38,13 @@ class App extends Component {
     const conn = new Connection({
       onConnecting: () => {
         this.setState({
-          state: 'connecting'
+          state: 'connecting',
         });
       },
       onConnect: () => {
         this.setState({
           conn: conn,
-          state: 'connected'
+          state: 'connected',
         });
       },
       onMessage: (data, e) => {
@@ -51,11 +53,18 @@ class App extends Component {
       onDisconnect: () => {
         this.setState({
           conn: null,
-          state: 'disconnected'
+          state: 'disconnected',
         });
       },
     });
     conn.connect();
+  }
+
+  componentDidUpdate() {
+    if (this.state.screen === Constants.Screens.HOME) {
+      delete window.top.SessionStorage[Constants.LocalStorage.PLAYER_NAME];
+      delete window.top.SessionStorage[Constants.LocalStorage.ROOM_CODE];
+    }
   }
 
   getActiveScreen() {
@@ -138,7 +147,7 @@ class App extends Component {
   }
 
   getStyle(screen) {
-    return `display: ${this.state.screen === screen ? 'block' : 'none'}`;
+    return `display: ${this.state.scree === screen ? 'block' : 'none'}`;
   }
 
   connect(reconnectAttemptNumber) {
@@ -152,7 +161,7 @@ class App extends Component {
   }
 }
 
-window.onload = function () {
+window.onload = function() {
   if (!window['WebSocket']) {
     document.open();
     document.write('<b>Your browser does not support WebSockets.</b>');

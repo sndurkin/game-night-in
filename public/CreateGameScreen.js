@@ -70,6 +70,7 @@ export default class CreateGameScreen extends Component {
     switch (data.event) {
       case Constants.Events.CREATED_GAME:
         localStorage.setItem(Constants.LocalStorage.ROOM_CODE, data.body.roomCode);
+        window.top.SessionStorage[Constants.LocalStorage.ROOM_CODE] = data.body.roomCode;
 
         switch (data.body.gameType) {
           case 'fishbowl':
@@ -93,8 +94,8 @@ export default class CreateGameScreen extends Component {
               teams: [{
                 spymaster: {
                   name: this.state.name,
-                  isRoomOwner: true
-                }
+                  isRoomOwner: true,
+                },
               }, {}],
             });
             break;
@@ -123,6 +124,7 @@ export default class CreateGameScreen extends Component {
     }
 
     localStorage.setItem(Constants.LocalStorage.PLAYER_NAME, trimmedName);
+    window.top.SessionStorage[Constants.LocalStorage.PLAYER_NAME] = trimmedName;
 
     conn.send(JSON.stringify({
       action: Constants.Actions.CREATE_GAME,
