@@ -49,7 +49,7 @@ export default class CreateGameScreen extends Component {
                 name="name"
                 autocomplete="given-name"
                 type="text"
-                maxlength="20"
+                maxlength="40"
                 value=${name}
                 placeholder="Enter your name"
                 onInput=${this.onNameChange} />

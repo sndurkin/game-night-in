@@ -9,6 +9,7 @@ export default {
     ADD_TEAM: 'add-team',
     REMOVE_TEAM: 'remove-team',
     MOVE_PLAYER: 'move-player',
+    KICK_PLAYER: 'kick-player',
     CHANGE_SETTINGS: 'change-settings',
 
     START_TURN: 'start-turn',

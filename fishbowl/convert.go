@@ -7,13 +7,14 @@ import (
 
 func convertPlayersToAPIPlayers(
 	players []*models.Player,
+	settings *gameSettings,
 ) []fishbowl_api.Player {
 	apiPlayers := make([]fishbowl_api.Player, 0, len(players))
 	for _, player := range players {
 		apiPlayers = append(apiPlayers, fishbowl_api.Player{
 			Name:           player.Name,
 			IsRoomOwner:    player.IsRoomOwner,
-			WordsSubmitted: len(playersSettings[player.Name].words) > 0,
+			WordsSubmitted: len(playersSettings[player.Name].words) >= settings.numWordsRequired,
 		})
 	}
 	return apiPlayers
@@ -21,10 +22,12 @@ func convertPlayersToAPIPlayers(
 
 func convertTeamsToAPITeams(
 	teams [][]*models.Player,
+	settings *gameSettings,
 ) [][]fishbowl_api.Player {
 	apiTeams := make([][]fishbowl_api.Player, 0, len(teams))
 	for _, players := range teams {
-		apiTeams = append(apiTeams, convertPlayersToAPIPlayers(players))
+		apiTeams = append(apiTeams,
+			convertPlayersToAPIPlayers(players, settings))
 	}
 	return apiTeams
 }
@@ -38,8 +41,9 @@ func convertSettingsToAPISettings(
 	}
 
 	return fishbowl_api.GameSettings{
-		Rounds:      apiRounds,
-		TimerLength: settings.timerLength,
+		Rounds:           apiRounds,
+		TimerLength:      settings.timerLength,
+		NumWordsRequired: settings.numWordsRequired,
 	}
 }
 
@@ -52,7 +56,8 @@ func convertAPISettingsToSettings(
 	}
 
 	return &gameSettings{
-		rounds:      rounds,
-		timerLength: apiSettings.TimerLength,
+		rounds:           rounds,
+		timerLength:      apiSettings.TimerLength,
+		numWordsRequired: apiSettings.NumWordsRequired,
 	}
 }

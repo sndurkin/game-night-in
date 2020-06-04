@@ -87,6 +87,11 @@ func (h *Hub) registerClient(client *Client) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
+	player := &models.Player{
+		Client: client,
+	}
+	h.playerClients[client] = player
+
 	log.Printf("New client connection: { playerName: '%s', roomCode: '%s' }\n", client.playerName, client.roomCode)
 	if client.playerName != "" && client.roomCode != "" {
 		room, ok := h.rooms[client.roomCode]
@@ -94,13 +99,15 @@ func (h *Hub) registerClient(client *Client) {
 			matchedPlayer, playerIdx := h.getPlayerInRoom(room, client.playerName)
 			if matchedPlayer != nil {
 				h.rejoinGame(room, client, matchedPlayer, playerIdx)
-				return
 			}
+		} else {
+			log.Printf("Room not found, sending fatal error\n")
+			h.sendErrorMessage(&models.ErrorMessageRequest{
+				Player: player,
+				Fatal: true,
+				Error:  "This game no longer exists.",
+			})
 		}
-	}
-
-	h.playerClients[client] = &models.Player{
-		Client: client,
 	}
 }
 
@@ -146,7 +153,7 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 	}
 	err := json.Unmarshal(clientMessage.message, &incomingMessage)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return
 	}
 
@@ -156,7 +163,7 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 	actionType, ok := api.ActionLookup[incomingMessage.Action]
 	if !ok {
 		if player.Room == nil {
-			log.Fatalf("invalid action: %s\n", incomingMessage.Action)
+			log.Printf("Invalid action: %s\n", incomingMessage.Action)
 			h.mutex.Unlock()
 			return
 		}
@@ -176,33 +183,34 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 	case api.ActionCreateGame:
 		var req api.CreateGameRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return
 		}
 		h.createGame(player, req)
 	case api.ActionJoinGame:
 		var req api.JoinGameRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return
 		}
 		h.joinGame(player, req)
 	case api.ActionStartGame:
 		var req api.StartGameRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return
 		}
 		h.startGame(player, req)
 	case api.ActionRematch:
 		var req api.RematchRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return
 		}
 		h.rematch(player, req)
 	default:
-		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
+		log.Printf("Could not handle incoming action: %s\n",
+			incomingMessage.Action)
 	}
 }
 
@@ -394,6 +402,7 @@ func (h *Hub) rematch(
 func (h *Hub) sendErrorMessage(req *models.ErrorMessageRequest) {
 	var msg api.OutgoingMessage
 	msg.Event = "error"
+	msg.ErrorIsFatal = req.Fatal
 	msg.Error = req.Error
 	h.sendOutgoingMessages(&models.OutgoingMessageRequest{
 		PrimaryClient: req.Player.Client,
@@ -408,7 +417,7 @@ func (h *Hub) sendOutgoingMessages(
 	var err error
 	primaryOutput, err := json.Marshal(*req.PrimaryMsg)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return
 	}
 
@@ -416,7 +425,7 @@ func (h *Hub) sendOutgoingMessages(
 	if req.SecondaryMsg != nil {
 		secondaryOutput, err = json.Marshal(req.SecondaryMsg)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return
 		}
 	}

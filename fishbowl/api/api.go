@@ -8,14 +8,15 @@ type RoundT int
 type Player struct {
 	Name           string `json:"name"`
 	IsRoomOwner    bool   `json:"isRoomOwner,omitempty"`
-	WordsSubmitted bool   `json:"wordsSubmitted,omitempty"`
+	WordsSubmitted bool   `json:"wordsSubmitted"`
 }
 
 // GameSettings holds all the relevant information about a game's
 // settings.
 type GameSettings struct {
-	Rounds      []string `json:"rounds"`
-	TimerLength int      `json:"timerLength"`
+	Rounds           []string `json:"rounds"`
+	TimerLength      int      `json:"timerLength"`
+	NumWordsRequired int      `json:"numWordsRequired"`
 }
 
 // SubmitWordsRequest is used by clients to submit words for the
@@ -30,6 +31,12 @@ type MovePlayerRequest struct {
 	PlayerName string `json:"playerName"`
 	FromTeam   int    `json:"fromTeam"`
 	ToTeam     int    `json:"toTeam"`
+}
+
+// KickPlayerRequest is used by the owner of a room to remove a player
+// from the room.
+type KickPlayerRequest struct {
+	PlayerName string `json:"playerName"`
 }
 
 // AddTeamRequest is used by the owner of a room to add a new
@@ -104,6 +111,7 @@ const (
 	ActionAddTeam
 	ActionRemoveTeam
 	ActionMovePlayer
+	ActionKickPlayer
 	ActionChangeSettings
 	ActionStartTurn
 	ActionSubmitWords
@@ -123,6 +131,7 @@ var (
 		ActionAddTeam:        "add-team",
 		ActionRemoveTeam:     "remove-team",
 		ActionMovePlayer:     "move-player",
+		ActionKickPlayer:     "kick-player",
 		ActionChangeSettings: "change-settings",
 		ActionStartTurn:      "start-turn",
 		ActionSubmitWords:    "submit-words",

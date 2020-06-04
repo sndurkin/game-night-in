@@ -14,6 +14,12 @@ a {
   cursor: pointer;
 }
 
+button.secondary {
+  background: none;
+  color: #0057A3;
+  border: 1px solid #0057A3;
+}
+
 .loading-mask-ct {
   position: absolute;
   top: 0;
@@ -432,4 +438,9 @@ h3.scores-table-title {
 .scores-table td {
   padding: .3em 1em;
   text-align: right;
+}
+
+.inline-actions-separator {
+  display: inline-block;
+  margin: 0 6px;
 }

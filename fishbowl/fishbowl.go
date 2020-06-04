@@ -3,6 +3,7 @@ package fishbowl
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"sync"
@@ -48,8 +49,9 @@ type Game struct {
 // gameSettings holds all the data about the
 // game settings.
 type gameSettings struct {
-	rounds      []fishbowl_api.RoundT
-	timerLength int
+	rounds           []fishbowl_api.RoundT
+	timerLength      int
+	numWordsRequired int
 }
 
 var (
@@ -94,6 +96,7 @@ func NewGame(
 				fishbowl_api.RoundCharades,
 			},
 			timerLength: 45,
+			numWordsRequired: 5,
 		},
 		room:  gameRoom,
 		state: "waiting-room",
@@ -113,54 +116,60 @@ func (g *Game) HandleIncomingMessage(
 ) {
 	actionType, ok := fishbowl_api.ActionLookup[incomingMessage.Action]
 	if !ok {
-		log.Fatalf("invalid fishbowl action: %s\n", incomingMessage.Action)
+		log.Printf("Invalid fishbowl action: %s\n", incomingMessage.Action)
 	}
 
 	switch actionType {
 	case fishbowl_api.ActionAddTeam:
 		var req fishbowl_api.AddTeamRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.addTeam(player, req)
 	case fishbowl_api.ActionRemoveTeam:
 		var req fishbowl_api.RemoveTeamRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.removeTeam(player, req)
 	case fishbowl_api.ActionMovePlayer:
 		var req fishbowl_api.MovePlayerRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.movePlayer(player, req)
+	case fishbowl_api.ActionKickPlayer:
+		var req fishbowl_api.KickPlayerRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Println(err)
+		}
+		g.kickPlayer(player, req)
 	case fishbowl_api.ActionChangeSettings:
 		var req fishbowl_api.ChangeSettingsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.changeSettings(player, req)
 	case fishbowl_api.ActionStartTurn:
 		var req fishbowl_api.StartTurnRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.startTurn(player, req)
 	case fishbowl_api.ActionSubmitWords:
 		var req fishbowl_api.SubmitWordsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.submitWords(player, req)
 	case fishbowl_api.ActionChangeCard:
 		var req fishbowl_api.ChangeCardRequest
 		if err := json.Unmarshal(body, &req); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		g.changeCard(player, req)
 	default:
-		log.Fatalf("could not handle incoming action %s", incomingMessage.Action)
+		log.Printf("Could not handle incoming action: %s", incomingMessage.Action)
 	}
 }
 
@@ -251,8 +260,36 @@ func (g *Game) movePlayer(
 		return
 	}
 
-	playerToMove := g.removePlayerFromTeam(room, req.FromTeam, req.PlayerName)
+	playerToMove := g.removePlayerFromTeam(room, req.PlayerName)
 	g.teams[req.ToTeam] = append(g.teams[req.ToTeam], playerToMove)
+
+	g.sendUpdatedGameMessages(nil)
+}
+
+func (g *Game) kickPlayer(
+	player *models.Player,
+	req fishbowl_api.KickPlayerRequest,
+) {
+	log.Printf("Kick player request: %s\n", req.PlayerName)
+
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	room, err := g.performRoomChecks(player, true, false)
+	if err != nil {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  err.Error(),
+		})
+		return
+	}
+
+	playerToKick := g.removePlayerFromTeam(room, req.PlayerName)
+	playerToKick.Room = nil
+	playerToKick.IsRoomOwner = false
+
+	// TODO: move this action to the hub
+	//playerToKick.Client.(*Client).conn.Close()
 
 	g.sendUpdatedGameMessages(nil)
 }
@@ -343,7 +380,8 @@ func (g *Game) startTurn(
 				return
 			}
 
-			log.Fatalf("Game was not in correct state when turn timer expired: %s", g.state)
+			log.Printf("Game was not in correct state when turn timer expired: %s",
+				g.state)
 			return
 		}
 
@@ -372,6 +410,15 @@ func (g *Game) submitWords(
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
 			Error:  err.Error(),
+		})
+		return
+	}
+
+	if len(req.Words) < g.settings.numWordsRequired {
+		g.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  fmt.Sprintf("At least %d words are required.",
+				g.settings.numWordsRequired),
 		})
 		return
 	}
@@ -474,7 +521,7 @@ func (g *Game) AddPlayer(player *models.Player) {
 	msg.Body = fishbowl_api.CreatedGameEvent{
 		GameType: g.room.GameType,
 		RoomCode: g.room.RoomCode,
-		Teams:    convertTeamsToAPITeams(g.teams),
+		Teams:    convertTeamsToAPITeams(g.teams, g.settings),
 		Settings: convertSettingsToAPISettings(g.settings),
 	}
 
@@ -530,6 +577,7 @@ func (g *Game) Start(player *models.Player) {
 	g.turnJustStarted = true
 	g.state = "turn-start"
 
+	g.removeExcessSubmittedWords()
 	g.reshuffleCardsForRound()
 	g.initGameScores()
 
@@ -573,18 +621,17 @@ func (g *Game) Rematch(player *models.Player) {
 // This function must be called with the mutex held.
 func (g *Game) removePlayerFromTeam(
 	room *models.GameRoom,
-	fromTeam int,
 	playerName string,
 ) *models.Player {
-	players := g.teams[fromTeam]
-	for idx, player := range players {
-		if player.Name == playerName {
-			player := players[idx]
-			g.teams[fromTeam] = append(
-				players[:idx],
-				players[idx+1:]...,
-			)
-			return player
+	for teamIdx, teamPlayers := range g.teams {
+		for idx, player := range teamPlayers {
+			if player.Name == playerName {
+				g.teams[teamIdx] = append(
+					teamPlayers[:idx],
+					teamPlayers[idx+1:]...,
+				)
+				return player
+			}
 		}
 	}
 
@@ -595,6 +642,19 @@ func (g *Game) initGameScores() {
 	g.teamScoresByRound = make([][]int, len(g.settings.rounds))
 	for idx := range g.settings.rounds {
 		g.teamScoresByRound[idx] = make([]int, len(g.teams))
+	}
+}
+
+// This is used to remove excess words players may have submitted
+// before a settings change.
+//
+// This function must be called with the mutex held.
+func (g *Game) removeExcessSubmittedWords() {
+	for _, teamPlayers := range g.teams {
+		for _, player := range teamPlayers {
+			playerSettings := playersSettings[player.Name]
+			playerSettings.words = playerSettings.words[:g.settings.numWordsRequired]
+		}
 	}
 }
 
@@ -636,7 +696,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 		msg.Event = api.Event[api.EventUpdatedRoom]
 		msg.Body = fishbowl_api.UpdatedRoomEvent{
 			GameType: room.GameType,
-			Teams:    convertTeamsToAPITeams(g.teams),
+			Teams:    convertTeamsToAPITeams(g.teams, g.settings),
 			Settings: convertSettingsToAPISettings(g.settings),
 		}
 
@@ -693,7 +753,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	}
 	if justJoinedClient != nil {
 		updatedGameEvent.GameType = room.GameType
-		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
+		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams, g.settings)
 		updatedGameEvent.Settings = convertSettingsToAPISettings(
 			g.settings)
 	}
@@ -717,7 +777,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	}
 	if justJoinedClient != nil {
 		updatedGameEvent.GameType = room.GameType
-		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams)
+		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams, g.settings)
 		updatedGameEvent.Settings = convertSettingsToAPISettings(
 			g.settings)
 	}

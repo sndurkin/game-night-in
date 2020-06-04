@@ -109,6 +109,11 @@ export default class FishbowlGameScreen extends Component {
 
   handleMessage(data, e) {
     if (data.error) {
+      if (data.errorIsFatal) {
+        window.location.reload();
+        return;
+      }
+
       this.setState({ error: data.error });
     }
 

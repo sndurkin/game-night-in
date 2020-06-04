@@ -49,6 +49,7 @@ type GameRoom struct {
 // construct an error message to 1 client.
 type ErrorMessageRequest struct {
 	Player   *Player
+	Fatal bool
 	Error string
 }
 

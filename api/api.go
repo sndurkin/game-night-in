@@ -30,9 +30,10 @@ type RematchRequest struct{}
 
 // OutgoingMessage is any outgoing websockets message.
 type OutgoingMessage struct {
-	Event string      `json:"event"`
-	Error string      `json:"error,omitempty"`
-	Body  interface{} `json:"body"`
+	Event        string      `json:"event"`
+	Error        string      `json:"error,omitempty"`
+	ErrorIsFatal bool        `json:"errorIsFatal,omitempty"`
+	Body         interface{} `json:"body"`
 }
 
 // UpdatedGameEvent
