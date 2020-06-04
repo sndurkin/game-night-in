@@ -74,34 +74,43 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.mutex.Lock()
-
-			log.Printf("New client connection: { playerName: '%s', roomCode: '%s' }\n", client.playerName, client.roomCode)
-			if client.playerName != "" && client.roomCode != "" {
-				room, ok := h.rooms[client.roomCode]
-				if ok {
-					matchedPlayer, playerIdx := h.getPlayerInRoom(room, client.playerName)
-					if matchedPlayer != nil {
-						h.rejoinGame(room, client, matchedPlayer, playerIdx)
-						return
-					}
-				}
-			}
-
-			h.playerClients[client] = &models.Player{
-				Client: client,
-			}
-			h.mutex.Unlock()
+			h.registerClient(client)
 		case client := <-h.unregister:
-			h.mutex.Lock()
-			if _, ok := h.playerClients[client]; ok {
-				delete(h.playerClients, client)
-				close(client.send)
-			}
-			h.mutex.Unlock()
+			h.unregisterClient(client)
 		case clientMessage := <-h.message:
 			h.handleIncomingMessage(clientMessage)
 		}
+	}
+}
+
+func (h *Hub) registerClient(client *Client) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	log.Printf("New client connection: { playerName: '%s', roomCode: '%s' }\n", client.playerName, client.roomCode)
+	if client.playerName != "" && client.roomCode != "" {
+		room, ok := h.rooms[client.roomCode]
+		if ok {
+			matchedPlayer, playerIdx := h.getPlayerInRoom(room, client.playerName)
+			if matchedPlayer != nil {
+				h.rejoinGame(room, client, matchedPlayer, playerIdx)
+				return
+			}
+		}
+	}
+
+	h.playerClients[client] = &models.Player{
+		Client: client,
+	}
+}
+
+func (h *Hub) unregisterClient(client *Client) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	if _, ok := h.playerClients[client]; ok {
+		delete(h.playerClients, client)
+		close(client.send)
 	}
 }
 

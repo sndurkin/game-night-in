@@ -1,6 +1,7 @@
 import { html, Component } from 'https://unpkg.com/htm/preact/standalone.module.js';
 
 import ScreenWrapper from '../ScreenWrapper.js';
+import LoadingMask from '../LoadingMask.js';
 import Constants from '../Constants.js';
 
 import FishbowlConstants from './FishbowlConstants.js';
@@ -13,6 +14,9 @@ export default class FishbowlGameScreen extends Component {
 
     this.state = {
       timeLeft: null,
+
+      currentCard: null,
+      changingCard: false,
     };
 
     this.startTurn = this.startTurn.bind(this);
@@ -69,7 +73,7 @@ export default class FishbowlGameScreen extends Component {
 
   render() {
     const { game } = this.props;
-    const { timeLeft } = this.state;
+    const { timeLeft, changingCard } = this.state;
 
     return html`
       <${ScreenWrapper} ...${this.props} header=${this.header}>
@@ -96,6 +100,9 @@ export default class FishbowlGameScreen extends Component {
             </div>
           `}
         </div>
+        ${changingCard ? html`
+          <${LoadingMask} />
+        ` : null}
       <//>
     `;
   }
@@ -108,6 +115,13 @@ export default class FishbowlGameScreen extends Component {
     switch (data.event) {
       case Constants.Events.UPDATED_GAME:
         const game = data.body;
+
+        if (this.state.changingCard && this.state.currentCard !== game.currentCard) {
+          // Card was just changed.
+          this.setState({
+            changingCard: false,
+          });
+        }
 
         this.props.updateStoreData({ game: game });
         if (game.state === FishbowlConstants.States.GAME_OVER) {
@@ -126,6 +140,12 @@ export default class FishbowlGameScreen extends Component {
   }
 
   changeCard(changeType) {
+    const { game } = this.props;
+    this.setState({
+      currentCard: game.currentCard,
+      changingCard: true,
+    });
+
     const { conn } = this.props;
     conn.send(JSON.stringify({
       action: FishbowlConstants.Actions.CHANGE_CARD,

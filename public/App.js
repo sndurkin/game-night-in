@@ -3,6 +3,7 @@ import { html, Component, render } from 'https://unpkg.com/htm/preact/standalone
 import HomeScreen from './HomeScreen.js';
 import CreateGameScreen from './CreateGameScreen.js';
 import JoinGameScreen from './JoinGameScreen.js';
+import LoadingMask from './LoadingMask.js';
 import Connection from './Connection.js';
 import Constants from './Constants.js';
 
@@ -132,8 +133,8 @@ class App extends Component {
           <${CodenamesRoomScreen} ref=${r => this.codenamesRoomScreen = r} ...${sharedProps} />
         `}
       </div>
-      ${state !== 'connected' ? html`
-        <div class="connecting" />
+      ${state === 'connecting' ? html`
+        <${LoadingMask} message="Connecting..." />
       ` : null}
     `;
   }
