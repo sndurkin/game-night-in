@@ -128,7 +128,7 @@ func (h *Hub) runRoomCleanup() {
 		roomCodes := []string{}
 		for roomCode, room := range h.rooms {
 			expiryTime := room.LastInteractionTime.Add(
-				time.Minute * time.Duration(30))
+				time.Hour * time.Duration(1))
 			if now.After(expiryTime) {
 				roomCodes = append(roomCodes, roomCode)
 			}
