@@ -263,12 +263,18 @@ export default class FishbowlRoomScreen extends Component {
                   </div>
                   ${isRoomOwner ? html`
                     ${!player.isRoomOwner ? html`
-                      <a onClick=${() => this.showKickPlayerModal(player)}>
+                      <a
+                        role="link"
+                        onClick=${() => this.showKickPlayerModal(player)}
+                      >
                        Kick
                       </a>
                       <span class="inline-actions-separator"> • </span>
                     ` : null}
-                    <a onClick=${() => this.showMovePlayerModal(idx, player)}>
+                    <a
+                      role="link"
+                      onClick=${() => this.showMovePlayerModal(idx, player)}
+                    >
                       Move
                     </a>
                   ` : player.isRoomOwner ? html`
@@ -355,7 +361,7 @@ export default class FishbowlRoomScreen extends Component {
         <div class="settings-header">
           <div class="settings-title">Settings</div>
           ${isRoomOwner ? html`
-            <a onClick=${this.openChangeSettings}>Change</a>
+            <a role="link" onClick=${this.openChangeSettings}>Change</a>
           ` : null}
         </div>
         <div><span>${wordsStr}, ${timerStr}, ${roundsStr}</span></div>

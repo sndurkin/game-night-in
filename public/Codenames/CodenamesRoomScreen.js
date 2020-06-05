@@ -197,6 +197,7 @@ export default class CodenamesRoomScreen extends Component {
                 </div>
                 ${isRoomOwner && team.spymaster ? html`
                   <a
+                    role="link"
                     class="codenames-move"
                     onClick=${() => this.showMovePlayerModal(team.spymaster, idx, CodenamesConstants.PlayerType.SPYMASTER)}
                   >
@@ -219,6 +220,7 @@ export default class CodenamesRoomScreen extends Component {
                 </div>
                 ${isRoomOwner && team.guesser ? html`
                   <a
+                    role="link"
                     class="codenames-move"
                     onClick=${() => this.showMovePlayerModal(team.guesser, idx, CodenamesConstants.PlayerType.GUESSER)}
                   >

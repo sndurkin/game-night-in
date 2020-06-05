@@ -17,6 +17,8 @@ export default class FishbowlGameScreen extends Component {
 
       currentCard: null,
       changingCard: false,
+
+      alreadySkipped: false,
     };
 
     this.startTurn = this.startTurn.bind(this);
@@ -137,6 +139,10 @@ export default class FishbowlGameScreen extends Component {
   }
 
   startTurn() {
+    this.setState({
+      alreadySkipped: false,
+    });
+
     const { conn } = this.props;
     conn.send(JSON.stringify({
       action: FishbowlConstants.Actions.START_TURN,
@@ -146,9 +152,12 @@ export default class FishbowlGameScreen extends Component {
 
   changeCard(changeType) {
     const { game } = this.props;
+    const { alreadySkipped } = this.state;
+
     this.setState({
       currentCard: game.currentCard,
       changingCard: true,
+      alreadySkipped: alreadySkipped || changeType === FishbowlConstants.CardChange.SKIP,
     });
 
     const { conn } = this.props;
@@ -248,6 +257,7 @@ export default class FishbowlGameScreen extends Component {
 
   get buttonBar() {
     const { game } = this.props;
+    const { alreadySkipped } = this.state;
     switch (game.state) {
       case 'turn-start':
         return html`
@@ -256,7 +266,7 @@ export default class FishbowlGameScreen extends Component {
       case 'turn-active':
         return html`
           <button
-            class="pseudo"
+            class=${'pseudo' + (alreadySkipped ? ' invisible' : '')}
             onClick=${() => this.changeCard(FishbowlConstants.CardChange.SKIP)}
           >
             Skip
