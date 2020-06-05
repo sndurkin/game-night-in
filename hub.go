@@ -99,6 +99,15 @@ func (h *Hub) registerClient(client *Client) {
 			matchedPlayer, playerIdx := h.getPlayerInRoom(room, client.playerName)
 			if matchedPlayer != nil {
 				h.rejoinGame(room, client, matchedPlayer, playerIdx)
+			} else {
+				log.Printf("Player not found, sending fatal error\n")
+
+				h.sendErrorMessage(&models.ErrorMessageRequest{
+					Player: player,
+					Fatal: true,
+					Error:  "You are no longer part of this game.",
+				})
+				delete(h.playerClients, client)
 			}
 		} else {
 			log.Printf("Room not found, sending fatal error\n")
@@ -107,6 +116,7 @@ func (h *Hub) registerClient(client *Client) {
 				Fatal: true,
 				Error:  "This game no longer exists.",
 			})
+			delete(h.playerClients, client)
 		}
 	}
 }
@@ -201,6 +211,12 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 			return
 		}
 		h.startGame(player, req)
+	case api.ActionKickPlayer:
+		var req api.KickPlayerRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			log.Println(err)
+		}
+		h.kickPlayer(player, req)
 	case api.ActionRematch:
 		var req api.RematchRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -375,6 +391,45 @@ func (h *Hub) startGame(
 	}
 
 	room.Game.Start(player)
+}
+
+func (h *Hub) kickPlayer(
+	player *models.Player,
+	req api.KickPlayerRequest,
+) {
+	log.Printf("Kick player request: %s\n", req.PlayerName)
+
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
+	room, err := h.performRoomChecks(player, true, false)
+	if err != nil {
+		h.sendErrorMessage(&models.ErrorMessageRequest{
+			Player: player,
+			Error:  err.Error(),
+		})
+		return
+	}
+
+	for idx, player := range room.Players {
+		if player.Name == req.PlayerName {
+			room.Players = append(room.Players[:idx], room.Players[idx+1:]...)
+			break
+		}
+	}
+
+	for client, player := range h.playerClients {
+		if player.Name == req.PlayerName {
+			log.Printf("Closing connection for kicked player: %s\n",
+				req.PlayerName)
+
+			delete(h.playerClients, client)
+			client.conn.Close()
+			break
+		}
+	}
+
+	room.Game.Kick(req.PlayerName)
 }
 
 func (h *Hub) rematch(

@@ -33,12 +33,6 @@ type MovePlayerRequest struct {
 	ToTeam     int    `json:"toTeam"`
 }
 
-// KickPlayerRequest is used by the owner of a room to remove a player
-// from the room.
-type KickPlayerRequest struct {
-	PlayerName string `json:"playerName"`
-}
-
 // AddTeamRequest is used by the owner of a room to add a new
 // team to the game.
 type AddTeamRequest struct{}
@@ -111,7 +105,6 @@ const (
 	ActionAddTeam
 	ActionRemoveTeam
 	ActionMovePlayer
-	ActionKickPlayer
 	ActionChangeSettings
 	ActionStartTurn
 	ActionSubmitWords
@@ -131,7 +124,6 @@ var (
 		ActionAddTeam:        "add-team",
 		ActionRemoveTeam:     "remove-team",
 		ActionMovePlayer:     "move-player",
-		ActionKickPlayer:     "kick-player",
 		ActionChangeSettings: "change-settings",
 		ActionStartTurn:      "start-turn",
 		ActionSubmitWords:    "submit-words",

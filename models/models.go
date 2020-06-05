@@ -30,6 +30,7 @@ type Game interface {
 		newPlayerJoined bool,
 		req api.JoinGameRequest,
 	)
+	Kick(playerName string)
 	Rematch(player *Player)
 }
 

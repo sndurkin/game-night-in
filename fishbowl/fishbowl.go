@@ -138,12 +138,6 @@ func (g *Game) HandleIncomingMessage(
 			log.Println(err)
 		}
 		g.movePlayer(player, req)
-	case fishbowl_api.ActionKickPlayer:
-		var req fishbowl_api.KickPlayerRequest
-		if err := json.Unmarshal(body, &req); err != nil {
-			log.Println(err)
-		}
-		g.kickPlayer(player, req)
 	case fishbowl_api.ActionChangeSettings:
 		var req fishbowl_api.ChangeSettingsRequest
 		if err := json.Unmarshal(body, &req); err != nil {
@@ -262,34 +256,6 @@ func (g *Game) movePlayer(
 
 	playerToMove := g.removePlayerFromTeam(room, req.PlayerName)
 	g.teams[req.ToTeam] = append(g.teams[req.ToTeam], playerToMove)
-
-	g.sendUpdatedGameMessages(nil)
-}
-
-func (g *Game) kickPlayer(
-	player *models.Player,
-	req fishbowl_api.KickPlayerRequest,
-) {
-	log.Printf("Kick player request: %s\n", req.PlayerName)
-
-	g.mutex.Lock()
-	defer g.mutex.Unlock()
-
-	room, err := g.performRoomChecks(player, true, false)
-	if err != nil {
-		g.sendErrorMessage(&models.ErrorMessageRequest{
-			Player: player,
-			Error:  err.Error(),
-		})
-		return
-	}
-
-	playerToKick := g.removePlayerFromTeam(room, req.PlayerName)
-	playerToKick.Room = nil
-	playerToKick.IsRoomOwner = false
-
-	// TODO: move this action to the hub
-	//playerToKick.Client.(*Client).conn.Close()
 
 	g.sendUpdatedGameMessages(nil)
 }
@@ -587,6 +553,17 @@ func (g *Game) Start(player *models.Player) {
 		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players)-1)
 	}
 	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams)-1)
+
+	g.sendUpdatedGameMessages(nil)
+}
+
+// Kick removes a player from the game.
+//
+// This function must be called with the mutex held.
+func (g *Game) Kick(playerName string) {
+	playerToKick := g.removePlayerFromTeam(g.room, playerName)
+	playerToKick.Room = nil
+	playerToKick.IsRoomOwner = false
 
 	g.sendUpdatedGameMessages(nil)
 }

@@ -21,6 +21,12 @@ type JoinGameRequest struct {
 	Name     string `json:"name"`
 }
 
+// KickPlayerRequest is used by the owner of a room to remove a player
+// from the room.
+type KickPlayerRequest struct {
+	PlayerName string `json:"playerName"`
+}
+
 // StartGameRequest is used by the owner of a room to start the game.
 type StartGameRequest struct{}
 
@@ -44,6 +50,7 @@ const (
 	ActionInvalid ActionT = iota
 	ActionCreateGame
 	ActionJoinGame
+	ActionKickPlayer
 	ActionStartGame
 	ActionRematch
 )
@@ -62,6 +69,7 @@ var (
 		ActionInvalid:    "invalid action",
 		ActionCreateGame: "create-game",
 		ActionJoinGame:   "join-game",
+		ActionKickPlayer: "kick-player",
 		ActionStartGame:  "start-game",
 		ActionRematch:    "rematch",
 	}
