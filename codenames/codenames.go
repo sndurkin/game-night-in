@@ -467,6 +467,15 @@ func (g *Game) Start(player *models.Player) {
 	g.sendUpdatedGameMessages(nil)
 }
 
+// Kick removes a player from the game.
+//
+// This function must be called with the mutex held.
+func (g *Game) Kick(playerName string) {
+	// TODO
+
+	g.sendUpdatedGameMessages(nil)
+}
+
 // Rematch starts a new game with the same players and settings.
 //
 // This function must be called with the mutex held.

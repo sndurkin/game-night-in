@@ -170,7 +170,7 @@ export default class CodenamesRoomScreen extends Component {
   }
 
   renderRoom() {
-    const { isRoomOwner } = this.props;
+    const { name, isRoomOwner } = this.props;
     const {
       showMovePlayerModal, teamIdxToMoveFrom, playerTypeToMoveFrom
     } = this.state;
@@ -180,63 +180,61 @@ export default class CodenamesRoomScreen extends Component {
       <div class="teams">
         ${teams.map((team, idx) => html`
           <div class="team">
-            <div class="team-title" style=${Utils.teamStyle(idx)}>
-              Team ${idx + 1}
-            </div>
-            <div class="team-table">
-              <div class="team-row">
-                <div class="codenames-player">
-                  <div class="player-type">
-                    Spymaster
-                  </div>
-                  <div class="player-name">
-                    ${team.spymaster ? team.spymaster.name : html`
-                      <span class="player-none">(none)</span>
-                    `}
-                  </div>
-                </div>
-                ${isRoomOwner && team.spymaster ? html`
-                  <a
-                    role="link"
-                    class="codenames-move"
-                    onClick=${() => this.showMovePlayerModal(team.spymaster, idx, CodenamesConstants.PlayerType.SPYMASTER)}
-                  >
-                    Move
-                  </a>
-                ` : team.spymaster && team.spymaster.isRoomOwner ? html`
-                  <div>Owner</div>
-                ` : ''}
-              </div>
-              <div class="team-row">
-                <div class="codenames-player">
-                  <div class="player-type">
-                    Guesser
-                  </div>
-                  <div class="player-name">
-                    ${team.guesser ? team.guesser.name : html`
-                      <span class="player-none">(none)</span>
-                    `}
-                  </div>
-                </div>
-                ${isRoomOwner && team.guesser ? html`
-                  <a
-                    role="link"
-                    class="codenames-move"
-                    onClick=${() => this.showMovePlayerModal(team.guesser, idx, CodenamesConstants.PlayerType.GUESSER)}
-                  >
-                    Move
-                  </a>
-                ` : team.guesser && team.guesser.isRoomOwner ? html`
-                  <div>Owner</div>
-                ` : ''}
-              </div>
-            </table>
+          <div class="team-header" style=${Utils.teamStyle(idx)}>
+            <div class="team-title">Team ${idx + 1}</div>
           </div>
-        `)
-      }
+          <div class="team-table">
+            <div class="team-row">
+              <div class="codenames-player">
+                <div class="player-type">
+                  Spymaster
+                </div>
+                <div class=${'player-name' + (team.spymaster && team.spymaster.name === name ? ' bold' : '')}>
+                  ${team.spymaster ? team.spymaster.name : html`
+                    <span class="player-none">(none)</span>
+                  `}
+                </div>
+              </div>
+              ${isRoomOwner && team.spymaster ? html`
+                <a
+                  role="link"
+                  class="codenames-player-meta"
+                  onClick=${() => this.showMovePlayerModal(team.spymaster, idx, CodenamesConstants.PlayerType.SPYMASTER)}
+                >
+                  Move
+                </a>
+              ` : team.spymaster && team.spymaster.isRoomOwner ? html`
+                <div class="codenames-player-meta">Owner</div>
+              ` : ''}
+            </div>
+            <div class="team-row">
+              <div class="codenames-player">
+                <div class="player-type">
+                  Guesser
+                </div>
+                <div class=${'player-name' + (team.guesser && team.guesser.name === name ? ' bold' : '')}>
+                  ${team.guesser ? team.guesser.name : html`
+                    <span class="player-none">(none)</span>
+                  `}
+                </div>
+              </div>
+              ${isRoomOwner && team.guesser ? html`
+                <a
+                  role="link"
+                  class="codenames-player-meta"
+                  onClick=${() => this.showMovePlayerModal(team.guesser, idx, CodenamesConstants.PlayerType.GUESSER)}
+                >
+                  Move
+                </a>
+              ` : team.guesser && team.guesser.isRoomOwner ? html`
+                <div class="codenames-player-meta">Owner</div>
+              ` : ''}
+            </div>
+          </table>
+        </div>
+      `)}
       </div>
-  ${
-      isRoomOwner ? html`
+      ${isRoomOwner ? html`
         <div class="button-bar">
           <div></div>
           <button
@@ -245,41 +243,40 @@ export default class CodenamesRoomScreen extends Component {
             Start game
           </button>
         </div>
-      ` : this.waitingMessage
-      }
-<div class="modal">
-  <input
-    id="move-player-modal"
-    type="checkbox"
-    checked=${showMovePlayerModal ? 'checked' : ''} />
-  <label for="move-player-modal" class="overlay"></label>
-  <article>
-    <header>
-      <h3>Select a team</h3>
-      <label for="move-player-modal" class="close">✖</label>
-    </header>
-    <section class="content">
-      ${teams.map((_, idx) => html`
-        <span
-          class="button stack"
-          disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.SPYMASTER}
-          onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.SPYMASTER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.SPYMASTER }); }}
-        >
-          Team ${idx + 1} • Spymaster
-        </span>
-        <span
-          class="button stack"
-          disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.GUESSER}
-          onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.GUESSER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.GUESSER }); }}
-        >
-          Team ${idx + 1} • Guesser
-        </span>
-      `)}
-    </section>
-    <footer></footer>
-  </article>
-</div>
-`;
+      ` : this.waitingMessage}
+      <div class="modal">
+        <input
+          id="move-player-modal"
+          type="checkbox"
+          checked=${showMovePlayerModal ? 'checked' : ''} />
+        <label for="move-player-modal" class="overlay"></label>
+        <article>
+          <header>
+            <h3>Select a team</h3>
+            <label for="move-player-modal" class="close">✖</label>
+          </header>
+          <section class="content">
+            ${teams.map((_, idx) => html`
+              <span
+                class="button stack"
+                disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.SPYMASTER}
+                onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.SPYMASTER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.SPYMASTER }); }}
+              >
+                Team ${idx + 1} • Spymaster
+              </span>
+              <span
+                class="button stack"
+                disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.GUESSER}
+                onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.GUESSER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.GUESSER }); }}
+              >
+                Team ${idx + 1} • Guesser
+              </span>
+            `)}
+          </section>
+          <footer></footer>
+        </article>
+      </div>
+    `;
   }
 
   handleMessage(data, e) {
