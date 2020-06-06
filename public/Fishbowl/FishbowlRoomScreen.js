@@ -53,10 +53,11 @@ export default class FishbowlRoomScreen extends Component {
 
     this.onWordChange = this.onWordChange.bind(this);
     this.addWord = this.addWord.bind(this);
-    this.enterWords = this.enterWords.bind(this);
     this.submitWords = this.submitWords.bind(this);
-    this.openChangeSettings = this.openChangeSettings.bind(this);
-    this.closeChangeSettings = this.closeChangeSettings.bind(this);
+    this.openChangeSettingsDialog = this.openChangeSettingsDialog.bind(this);
+    this.closeChangeSettingsDialog = this.closeChangeSettingsDialog.bind(this);
+    this.openEnterWordsDialog = this.openEnterWordsDialog.bind(this);
+    this.closeEnterWordsDialog = this.closeEnterWordsDialog.bind(this);
     this.renderRoundTableRow = this.renderRoundTableRow.bind(this);
     this.onNumWordsRequiredChange = this.onNumWordsRequiredChange.bind(this);
     this.onTimerChange = this.onTimerChange.bind(this);
@@ -91,6 +92,10 @@ export default class FishbowlRoomScreen extends Component {
       return this.renderChangeSettingsDialog();
     }
 
+    if (enteringWords) {
+      return this.renderEnterWordsDialog();
+    }
+
     return html`
       <${ScreenWrapper}
         onBack=${() => this.props.transitionToScreen(Constants.Screens.HOME)}
@@ -100,7 +105,7 @@ export default class FishbowlRoomScreen extends Component {
           ${error && html`
             <span class="label error">${error}</span>
           `}
-          ${enteringWords ? this.renderEnterWords() : this.renderRoom()}
+          ${this.renderRoom()}
         </div>
       <//>
     `;
@@ -113,7 +118,7 @@ export default class FishbowlRoomScreen extends Component {
     const header = html`
       <button
         class="close-settings pseudo"
-        onClick=${this.closeChangeSettings}
+        onClick=${this.closeChangeSettingsDialog}
       >
         ✖
       </button>
@@ -179,50 +184,63 @@ export default class FishbowlRoomScreen extends Component {
     `;
   }
 
-  renderEnterWords() {
+  renderEnterWordsDialog() {
     const { words, wordBeingEntered } = this.state;
     const { numWordsRequired } = this.settings;
 
+    const header = html`
+      <button
+        class="close-settings pseudo"
+        onClick=${this.closeEnterWordsDialog}
+      >
+        ✖
+      </button>
+    `;
+
     return html`
-      <form>
-        <label>
-          Word
-          <input
-            ref=${r => this.inputRef = r}
-            type="text"
-            maxlength="60"
-            value="${wordBeingEntered}"
-            placeholder="Enter a word or phrase"
-            onInput=${this.onWordChange} />
-        </label>
-      </form>
-      <div class="button-bar">
-        <button onClick=${this.addWord}>Add</button>
-        <div></div>
-        <button
-          disabled=${words.length < numWordsRequired}
-          onClick=${this.submitWords}
-          style="font-size: 0.9em"
-        >
-          Submit words
-        </button>
-      </div>
-      <div class="word-list">
-        <h4 class="word-list-title">
-          Words (${words.length} out of ${numWordsRequired}):
-        </h4>
-        ${words.map((word, idx) => html`
-          <div class="word-row">
-            <div class="word">${word}</div>
-            <div
-              class="word-delete"
-              onClick=${() => this.deleteWord(idx)}
+      <${ScreenWrapper} header=${header}>
+        <div class="screen">
+          <form>
+            <label>
+              Word
+              <input
+                ref=${r => this.inputRef = r}
+                type="text"
+                maxlength="60"
+                value="${wordBeingEntered}"
+                placeholder="Enter a word or phrase"
+                onInput=${this.onWordChange} />
+            </label>
+          </form>
+          <div class="button-bar">
+            <button onClick=${this.addWord}>Add</button>
+            <div></div>
+            <button
+              disabled=${words.length < numWordsRequired}
+              onClick=${this.submitWords}
+              style="font-size: 0.9em"
             >
-              ✖
-            </div>
+              Submit words
+            </button>
           </div>
-        `)}
-      </div>
+          <div class="word-list">
+            <h4 class="word-list-title">
+              Words (${words.length} out of ${numWordsRequired}):
+            </h4>
+            ${words.map((word, idx) => html`
+              <div class="word-row">
+                <div class="word">${word}</div>
+                <div
+                  class="word-delete"
+                  onClick=${() => this.deleteWord(idx)}
+                >
+                  ✖
+                </div>
+              </div>
+            `)}
+          </div>
+        </div>
+      <//>
     `;
   }
 
@@ -361,7 +379,7 @@ export default class FishbowlRoomScreen extends Component {
         <div class="settings-header">
           <div class="settings-title">Settings</div>
           ${isRoomOwner ? html`
-            <a role="link" onClick=${this.openChangeSettings}>Change</a>
+            <a role="link" onClick=${this.openChangeSettingsDialog}>Change</a>
           ` : null}
         </div>
         <div><span>${wordsStr}, ${timerStr}, ${roundsStr}</span></div>
@@ -377,7 +395,7 @@ export default class FishbowlRoomScreen extends Component {
         <div>${this.waitingMessage}</div>
         <div class="button-bar">
           <button
-            onClick=${this.enterWords}
+            onClick=${this.openEnterWordsDialog}
             class=${wordsSubmitted ? 'secondary' : ''}
           >
             ${!wordsSubmitted ? 'Enter words' : 'Edit words'}
@@ -527,12 +545,6 @@ export default class FishbowlRoomScreen extends Component {
     });
   }
 
-  enterWords() {
-    this.setState({
-      enteringWords: true,
-    });
-  }
-
   submitWords() {
     this.setState({
       enteringWords: false,
@@ -547,15 +559,27 @@ export default class FishbowlRoomScreen extends Component {
     }));
   }
 
-  openChangeSettings() {
+  openChangeSettingsDialog() {
     this.setState({
       changedSettings: JSON.parse(JSON.stringify(this.props.settings)),
     });
   }
 
-  closeChangeSettings() {
+  closeChangeSettingsDialog() {
     this.setState({
       changedSettings: null,
+    });
+  }
+
+  openEnterWordsDialog() {
+    this.setState({
+      enteringWords: true,
+    });
+  }
+
+  closeEnterWordsDialog() {
+    this.setState({
+      enteringWords: false,
     });
   }
 
