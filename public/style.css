@@ -19,6 +19,10 @@ a {
   -moz-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 
+.bold {
+  font-weight: bold;
+}
+
 .invisible {
   visibility: hidden;
 }
@@ -126,7 +130,7 @@ button.lone {
 
 .screen {
   flex: 1;
-  padding-top: 2em;
+  padding-top: 1em;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -189,6 +193,23 @@ label {
   margin-right: auto;
 }
 
+.settings-body {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.settings-pair {
+  flex: 50%;
+}
+
+.settings-value {
+
+}
+
+.settings-label {
+  color: #777;
+}
+
 .close-settings {
   margin-left: auto;
 }
@@ -197,9 +218,13 @@ label {
   padding: 0 .3em;
 }
 
-.teams {
+.fishbowl-room-body {
   flex: 1;
   overflow: auto;
+}
+
+.teams {
+
 }
 
 .team {
@@ -230,6 +255,7 @@ label {
 }
 
 .empty-list {
+  margin-left: 2em;
   color: #999;
 }
 

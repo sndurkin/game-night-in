@@ -60,6 +60,7 @@ export default class FishbowlRoomScreen extends Component {
     this.closeEnterWordsDialog = this.closeEnterWordsDialog.bind(this);
     this.renderRoundTableRow = this.renderRoundTableRow.bind(this);
     this.onNumWordsRequiredChange = this.onNumWordsRequiredChange.bind(this);
+    this.onMaxSkipsPerTurnChange = this.onMaxSkipsPerTurnChange.bind(this);
     this.onTimerChange = this.onTimerChange.bind(this);
     this.selectRound = this.selectRound.bind(this);
     this.removeRound = this.removeRound.bind(this);
@@ -113,7 +114,10 @@ export default class FishbowlRoomScreen extends Component {
 
   renderChangeSettingsDialog() {
     const { error } = this.state;
-    const { numWordsRequired, timerLength, rounds } = this.settings;
+    const {
+      numWordsRequired, maxSkipsPerTurn,
+      timerLength, rounds,
+    } = this.settings;
 
     const header = html`
       <button
@@ -137,6 +141,16 @@ export default class FishbowlRoomScreen extends Component {
               style="width: 4em"
               value=${numWordsRequired}
               onChange=${this.onNumWordsRequiredChange}
+            />
+            <div style="margin-left: 1em">words</div>
+          </div>
+          <h3>Maximum skips per turn allowed</h3>
+          <div style="display: flex; align-items: center">
+            <input
+              type="number"
+              style="width: 4em"
+              value=${maxSkipsPerTurn}
+              onChange=${this.onMaxSkipsPerTurnChange}
             />
             <div style="margin-left: 1em">words</div>
           </div>
@@ -245,7 +259,7 @@ export default class FishbowlRoomScreen extends Component {
   }
 
   renderRoom() {
-    const { isRoomOwner } = this.props;
+    const { name, isRoomOwner } = this.props;
     const {
       showMovePlayerModal, teamIdxToMoveFrom,
       showKickPlayerModal, playerToKick,
@@ -253,64 +267,66 @@ export default class FishbowlRoomScreen extends Component {
     const teams = this.props.teams || [];
 
     return html`
-      ${this.renderSettingsSummary()}
-      <div class="teams">
-        ${teams.map((team, idx) => html`
-          <div class="team">
-            <div class="team-header" style=${Utils.teamStyle(idx)}>
-              <div class="team-title">Team ${idx + 1}</div>
-              ${isRoomOwner && idx >= 2 ? html`
-                <button
-                  class="team-remove pseudo"
-                  onClick=${() => this.removeTeam(idx)}
-                >
-                  ✖
-                </button>
-              ` : null}
-            </div>
-            <div class="team-table">
-              ${(team || []).length === 0 ? html`
-                <div class="empty-list">No players yet!</div>
-              ` : (team || []).map(player => html`
-                <div class="team-row">
-                  <div class="player-ready">
-                    ${player.wordsSubmitted ? '✔' : ''}
-                  </div>
-                  <div class="player-name">
-                    ${player.name}
-                  </div>
-                  ${isRoomOwner ? html`
-                    ${!player.isRoomOwner ? html`
+      <div class="fishbowl-room-body">
+        ${this.renderSettingsSummary()}
+        <div class="teams">
+          ${teams.map((team, idx) => html`
+            <div class="team">
+              <div class="team-header" style=${Utils.teamStyle(idx)}>
+                <div class="team-title">Team ${idx + 1}</div>
+                ${isRoomOwner && idx >= 2 ? html`
+                  <button
+                    class="team-remove pseudo"
+                    onClick=${() => this.removeTeam(idx)}
+                  >
+                    ✖
+                  </button>
+                ` : null}
+              </div>
+              <div class="team-table">
+                ${(team || []).length === 0 ? html`
+                  <div class="empty-list">No players yet!</div>
+                ` : (team || []).map(player => html`
+                  <div class="team-row">
+                    <div class="player-ready">
+                      ${player.wordsSubmitted ? '✔' : ''}
+                    </div>
+                    <div class=${'player-name' + (player.name === name ? ' bold' : '')}>
+                      ${player.name}
+                    </div>
+                    ${isRoomOwner ? html`
+                      ${!player.isRoomOwner ? html`
+                        <a
+                          role="link"
+                          onClick=${() => this.showKickPlayerModal(player)}
+                        >
+                        Kick
+                        </a>
+                        <span class="inline-actions-separator"> • </span>
+                      ` : null}
                       <a
                         role="link"
-                        onClick=${() => this.showKickPlayerModal(player)}
+                        onClick=${() => this.showMovePlayerModal(idx, player)}
                       >
-                       Kick
+                        Move
                       </a>
-                      <span class="inline-actions-separator"> • </span>
-                    ` : null}
-                    <a
-                      role="link"
-                      onClick=${() => this.showMovePlayerModal(idx, player)}
-                    >
-                      Move
-                    </a>
-                  ` : player.isRoomOwner ? html`
-                    <div>Game creator</div>
-                  ` : ''}
-                </div>
-              `)}
-            </table>
-          </div>
-        `)}
-        ${isRoomOwner ? html`
-          <button
-            onClick=${this.addTeam}
-            disabled=${teams.length >= FishbowlConstants.Game.MAX_TEAMS}
-          >
-            Add team
-          </button>
-        ` : null}
+                    ` : player.isRoomOwner ? html`
+                      <div>Game creator</div>
+                    ` : ''}
+                  </div>
+                `)}
+              </table>
+            </div>
+          `)}
+          ${isRoomOwner ? html`
+            <button
+              onClick=${this.addTeam}
+              disabled=${teams.length >= FishbowlConstants.Game.MAX_TEAMS}
+            >
+              Add team
+            </button>
+          ` : null}
+        </div>
       </div>
       ${this.renderButtonBar()}
       <div class="modal">
@@ -368,11 +384,24 @@ export default class FishbowlRoomScreen extends Component {
 
   renderSettingsSummary() {
     const { isRoomOwner } = this.props;
-    const { numWordsRequired, timerLength, rounds } = this.settings;
+    const {
+      numWordsRequired, maxSkipsPerTurn,
+      timerLength, rounds,
+    } = this.settings;
 
-    const wordsStr = `${numWordsRequired} words per player`;
-    const timerStr = `${timerLength}s timer`;
-    const roundsStr = `${rounds.length} round${rounds.length !== 1 ? 's' : ''}`;
+    const settingsPairs = [{
+      label: `word${numWordsRequired !== 1 ? 's' : ''} per player`,
+      value: numWordsRequired,
+    }, {
+      label: `skip${maxSkipsPerTurn !== 1 ? 's' : ''} per turn`,
+      value: maxSkipsPerTurn,
+    }, {
+      label: 'per turn',
+      value: `${timerLength}s`,
+    }, {
+      label: `round${rounds.length !== 1 ? 's' : ''}`,
+      value: rounds.length,
+    }];
 
     return html`
       <div class="settings">
@@ -382,7 +411,14 @@ export default class FishbowlRoomScreen extends Component {
             <a role="link" onClick=${this.openChangeSettingsDialog}>Change</a>
           ` : null}
         </div>
-        <div><span>${wordsStr}, ${timerStr}, ${roundsStr}</span></div>
+        <div class="settings-body">
+          ${settingsPairs.map(settingsPair => html`
+            <div class="settings-pair">
+              <span class="settings-value">${settingsPair.value}</span>${' '}
+              <span class="settings-label">${settingsPair.label}</span>
+            </div>
+          `)}
+        </div>
       </div>
     `;
   }
@@ -451,6 +487,19 @@ export default class FishbowlRoomScreen extends Component {
     const newSettings = JSON.parse(JSON.stringify(this.settings));
     try {
       newSettings.numWordsRequired = parseInt(e.target.value, 10);
+
+      this.setState({
+        changedSettings: newSettings,
+      });
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  onMaxSkipsPerTurnChange(e) {
+    const newSettings = JSON.parse(JSON.stringify(this.settings));
+    try {
+      newSettings.maxSkipsPerTurn = parseInt(e.target.value, 10);
 
       this.setState({
         changedSettings: newSettings,

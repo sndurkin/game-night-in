@@ -44,6 +44,7 @@ func convertSettingsToAPISettings(
 		Rounds:           apiRounds,
 		TimerLength:      settings.timerLength,
 		NumWordsRequired: settings.numWordsRequired,
+		MaxSkipsPerTurn:  settings.maxSkipsPerTurn,
 	}
 }
 
@@ -59,5 +60,6 @@ func convertAPISettingsToSettings(
 		rounds:           rounds,
 		timerLength:      apiSettings.TimerLength,
 		numWordsRequired: apiSettings.NumWordsRequired,
+		maxSkipsPerTurn:  apiSettings.MaxSkipsPerTurn,
 	}
 }

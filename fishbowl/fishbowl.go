@@ -52,6 +52,7 @@ type gameSettings struct {
 	rounds           []fishbowl_api.RoundT
 	timerLength      int
 	numWordsRequired int
+	maxSkipsPerTurn  int
 }
 
 var (
@@ -97,6 +98,7 @@ func NewGame(
 			},
 			timerLength: 45,
 			numWordsRequired: 5,
+			maxSkipsPerTurn: 1,
 		},
 		room:  gameRoom,
 		state: "waiting-room",

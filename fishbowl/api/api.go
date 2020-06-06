@@ -17,6 +17,7 @@ type GameSettings struct {
 	Rounds           []string `json:"rounds"`
 	TimerLength      int      `json:"timerLength"`
 	NumWordsRequired int      `json:"numWordsRequired"`
+	MaxSkipsPerTurn  int      `json:"maxSkipsPerTurn"`
 }
 
 // SubmitWordsRequest is used by clients to submit words for the
