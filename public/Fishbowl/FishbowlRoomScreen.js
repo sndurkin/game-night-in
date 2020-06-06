@@ -152,7 +152,7 @@ export default class FishbowlRoomScreen extends Component {
               value=${maxSkipsPerTurn}
               onChange=${this.onMaxSkipsPerTurnChange}
             />
-            <div style="margin-left: 1em">words</div>
+            <div style="margin-left: 1em">skips</div>
           </div>
           <h3>Timer length</h3>
           <div style="display: flex; align-items: center">

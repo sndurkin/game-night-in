@@ -259,9 +259,9 @@ export default class FishbowlGameScreen extends Component {
   }
 
   get buttonBar() {
-    const { game } = this.props;
+    const { game, settings } = this.props;
     const { numSkipsUsed } = this.state;
-    const skipAvailable = numSkipsUsed >= game.settings.maxSkipsPerTurn;
+    const skipAvailable = numSkipsUsed < settings.maxSkipsPerTurn;
 
     switch (game.state) {
       case 'turn-start':
