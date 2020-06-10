@@ -13,7 +13,7 @@ export default class CreateGameScreen extends Component {
     super(...args);
 
     this.state = {
-      gameType: 'fishbowl',
+      gameType: 'codenames',
       name: localStorage.getItem(Constants.LocalStorage.PLAYER_NAME) || '',
       error: '',
     };
@@ -81,7 +81,7 @@ export default class CreateGameScreen extends Component {
               roomCode: data.body.roomCode,
               gameType: data.body.gameType,
               teams: data.body.teams,
-              settings: data.body.settings,
+              //settings: data.body.settings,
             });
             break;
           case 'codenames':
@@ -91,12 +91,7 @@ export default class CreateGameScreen extends Component {
               isRoomOwner: true,
               roomCode: data.body.roomCode,
               gameType: data.body.gameType,
-              teams: [{
-                spymaster: {
-                  name: this.state.name,
-                  isRoomOwner: true,
-                },
-              }, {}],
+              teams: data.body.teams,
             });
             break;
         }

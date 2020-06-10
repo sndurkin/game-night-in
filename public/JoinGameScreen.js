@@ -93,10 +93,10 @@ export default class JoinGameScreen extends Component {
         // and rejoining a game.
         if (data.body.teams) {
           for (let team of data.body.teams) {
-            if (team.spymaster && team.spymaster.name === this.state.name) {
-              sharedProps.isRoomOwner = team.spymaster.isRoomOwner;
-            } else if (team.guesser && team.guesser.name === this.state.name) {
-              sharedProps.isRoomOwner = team.guesser.isRoomOwner;
+            for (let player of team.players) {
+              if (player && player.name === this.state.name) {
+                Object.assign(sharedProps, player);
+              }
             }
           }
         }

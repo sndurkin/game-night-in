@@ -27,9 +27,12 @@ func convertTeamsToAPITeams(teams []*team) []codenames_api.Team {
 }
 
 func convertTeamToAPITeam(team *team) codenames_api.Team {
+	apiPlayers := make([]*codenames_api.Player, 0, len(team.players))
+	for _, player := range team.players {
+		apiPlayers = append(apiPlayers, convertPlayerToAPIPlayer(player))
+	}
 	return codenames_api.Team{
-		Spymaster: convertPlayerToAPIPlayer(team.spymaster),
-		Guesser: convertPlayerToAPIPlayer(team.guesser),
+		Players:     apiPlayers,
 		CardIndices: team.cardIndices,
 	}
 }

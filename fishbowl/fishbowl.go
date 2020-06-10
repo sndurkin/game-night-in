@@ -490,7 +490,7 @@ func (g *Game) AddPlayer(player *models.Player) {
 		GameType: g.room.GameType,
 		RoomCode: g.room.RoomCode,
 		Teams:    convertTeamsToAPITeams(g.teams, g.settings),
-		Settings: convertSettingsToAPISettings(g.settings),
+		//Settings: convertSettingsToAPISettings(g.settings),
 	}
 
 	g.sendOutgoingMessages(&models.OutgoingMessageRequest{
@@ -733,8 +733,7 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	if justJoinedClient != nil {
 		updatedGameEvent.GameType = room.GameType
 		updatedGameEvent.Teams = convertTeamsToAPITeams(g.teams, g.settings)
-		updatedGameEvent.Settings = convertSettingsToAPISettings(
-			g.settings)
+		updatedGameEvent.Settings = convertSettingsToAPISettings(g.settings)
 	}
 	msgToCurrentPlayer.Body = updatedGameEvent
 

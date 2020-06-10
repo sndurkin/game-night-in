@@ -7,6 +7,14 @@ import Constants from '../Constants.js';
 import CodenamesConstants from './CodenamesConstants.js';
 
 
+const playersInTeam = [{
+  label: 'Spymaster',
+  playerType: CodenamesConstants.PlayerType.SPYMASTER,
+}, {
+  label: 'Guesser',
+  playerType: CodenamesConstants.PlayerType.GUESSER,
+}];
+
 export default class CodenamesRoomScreen extends Component {
 
   constructor(...args) {
@@ -91,12 +99,6 @@ export default class CodenamesRoomScreen extends Component {
             />
             <div style="margin-left: 1em">seconds</div>
           </div>
-          <h3>Rounds</h3>
-          <table class="primary rounds-table">
-            <tbody>
-              ${rounds.map(this.renderRoundTableRow)}
-            </tbody>
-          </table>
           <button class="lone" onClick=${this.saveSettings}>Save</button>
         </div>
       <//>
@@ -125,115 +127,14 @@ export default class CodenamesRoomScreen extends Component {
     `;
   }
 
-  renderSubmitWords() {
-    const { words, wordBeingEntered } = this.state;
-
-    return html`
-      <form>
-        <label>
-          Word
-          <input
-            ref=${r => this.inputRef = r}
-            type="text"
-            maxlength="20"
-            value="${wordBeingEntered}"
-            placeholder="Enter a word or phrase"
-            onInput=${this.onWordChange} />
-        </label>
-      </form>
-      <div class="button-bar">
-        <button onClick=${this.addWord}>Add</button>
-        <div></div>
-        <button
-          disabled=${words.length < 5}
-          onClick=${this.submitWords}
-          style="font-size: 0.9em"
-        >
-          Submit words
-        </button>
-      </div>
-      <div class="word-list">
-        <h4 class="word-list-title">Words:</h4>
-        ${words.map((word, idx) => html`
-          <div class="word-row">
-            <div class="word">${word}</div>
-            <div
-              class="word-delete"
-              onClick=${() => this.deleteWord(idx)}
-            >
-              ✖
-            </div>
-          </div>
-        `)}
-      </div>
-    `;
-  }
-
   renderRoom() {
     const { name, isRoomOwner } = this.props;
     const {
-      showMovePlayerModal, teamIdxToMoveFrom, playerTypeToMoveFrom
+      showMovePlayerModal
     } = this.state;
-    const teams = this.props.teams || [];
 
     return html`
-      <div class="teams">
-        ${teams.map((team, idx) => html`
-          <div class="team">
-          <div class="team-header" style=${Utils.teamStyle(idx)}>
-            <div class="team-title">Team ${idx + 1}</div>
-          </div>
-          <div class="team-table">
-            <div class="team-row">
-              <div class="codenames-player">
-                <div class="player-type">
-                  Spymaster
-                </div>
-                <div class=${'player-name' + (team.spymaster && team.spymaster.name === name ? ' bold' : '')}>
-                  ${team.spymaster ? team.spymaster.name : html`
-                    <span class="player-none">(none)</span>
-                  `}
-                </div>
-              </div>
-              ${isRoomOwner && team.spymaster ? html`
-                <a
-                  role="link"
-                  class="codenames-player-meta"
-                  onClick=${() => this.showMovePlayerModal(team.spymaster, idx, CodenamesConstants.PlayerType.SPYMASTER)}
-                >
-                  Move
-                </a>
-              ` : team.spymaster && team.spymaster.isRoomOwner ? html`
-                <div class="codenames-player-meta">Owner</div>
-              ` : ''}
-            </div>
-            <div class="team-row">
-              <div class="codenames-player">
-                <div class="player-type">
-                  Guesser
-                </div>
-                <div class=${'player-name' + (team.guesser && team.guesser.name === name ? ' bold' : '')}>
-                  ${team.guesser ? team.guesser.name : html`
-                    <span class="player-none">(none)</span>
-                  `}
-                </div>
-              </div>
-              ${isRoomOwner && team.guesser ? html`
-                <a
-                  role="link"
-                  class="codenames-player-meta"
-                  onClick=${() => this.showMovePlayerModal(team.guesser, idx, CodenamesConstants.PlayerType.GUESSER)}
-                >
-                  Move
-                </a>
-              ` : team.guesser && team.guesser.isRoomOwner ? html`
-                <div class="codenames-player-meta">Owner</div>
-              ` : ''}
-            </div>
-          </table>
-        </div>
-      `)}
-      </div>
+      ${this.renderTeams()}
       ${isRoomOwner ? html`
         <div class="button-bar">
           <div></div>
@@ -256,27 +157,120 @@ export default class CodenamesRoomScreen extends Component {
             <label for="move-player-modal" class="close">✖</label>
           </header>
           <section class="content">
-            ${teams.map((_, idx) => html`
-              <span
-                class="button stack"
-                disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.SPYMASTER}
-                onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.SPYMASTER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.SPYMASTER }); }}
-              >
-                Team ${idx + 1} • Spymaster
-              </span>
-              <span
-                class="button stack"
-                disabled=${teamIdxToMoveFrom === idx && playerTypeToMoveFrom === CodenamesConstants.PlayerType.GUESSER}
-                onClick=${() => { (teamIdxToMoveFrom !== idx || playerTypeToMoveFrom !== CodenamesConstants.PlayerType.GUESSER) && this.movePlayer({ teamIdxToMoveTo: idx, playerTypeToMoveTo: CodenamesConstants.PlayerType.GUESSER }); }}
-              >
-                Team ${idx + 1} • Guesser
-              </span>
-            `)}
+            ${this.renderTeamsToSelect()}
           </section>
           <footer></footer>
         </article>
       </div>
     `;
+  }
+
+  renderTeams() {
+    const { name, isRoomOwner } = this.props;
+    const teams = this.props.teams || [];
+
+    const teamsContent = [];
+    for (let teamIdx = 0; teamIdx < teams.length; teamIdx++) {
+      const team = teams[teamIdx];
+      const playersContent = [];
+      for (let playerIdx = 0; playerIdx < playersInTeam.length; playerIdx++) {
+        const player = playersInTeam[playerIdx];
+        let playerName;
+        let boldClass = '';
+        if (team.players[player.playerType]) {
+          playerName = team.players[player.playerType].name;
+          if (team.players[player.playerType].name === name) {
+            boldClass = ' bold';
+          }
+        } else {
+          playerName = html`
+            <span class="codenames-player-none">(none)</span>
+          `;
+        }
+
+        let playerOptions = null;
+        if (team.players[player.playerType]) {
+          if (isRoomOwner) {
+            const movePlayer = () => {
+              this.showMovePlayerModal(
+                team.players[player.playerType],
+                teamIdx,
+                player.playerType);
+            };
+
+            playerOptions = html`
+              <a role="link" class="codenames-player-meta" onClick=${movePlayer}>
+                Move
+              </a>
+            `;
+          } else if (team.players[player.playerType].isRoomOwner) {
+            playerOptions = html`
+              <div class="codenames-player-meta">Owner</div>
+            `;
+          }
+        }
+
+        playersContent.push(html`
+          <div class="codenames-team-row">
+            <div class="codenames-player">
+              <div class="codenames-player-type">
+                ${player.label}
+              </div>
+              <div class=${'codenames-player-name' + boldClass}>
+                ${playerName}
+              </div>
+            </div>
+            ${playerOptions}
+          </div>
+        `);
+      }
+
+      teamsContent.push(html`
+        <div class="codenames-team">
+          <div class="codenames-team-header" style=${Utils.teamStyle(teamIdx)}>
+            <div class="codenames-team-title">Team ${teamIdx + 1}</div>
+          </div>
+          <div class="codenames-team-table">
+            ${playersContent}
+          </div>
+        </div>
+      `);
+    }
+
+    return html`
+      <div class="codenames-teams">
+        ${teamsContent}
+      </div>
+    `;
+  }
+
+  renderTeamsToSelect() {
+    const { teamIdxToMoveFrom, playerTypeToMoveFrom } = this.state;
+    const teams = this.props.teams || [];
+    const content = [];
+
+    for (let teamIdx = 0; teamIdx < teams.length; teamIdx++) {
+      for (let playerIdx = 0; playerIdx < playersInTeam.length; playerIdx++) {
+        const player = playersInTeam[playerIdx];
+
+        const disabled = teamIdxToMoveFrom === teamIdx
+          && playerTypeToMoveFrom === player.playerType;
+
+        const onClick = () => {
+          if (teamIdxToMoveFrom !== teamIdx || playerTypeToMoveFrom !== player.playerType) {
+            this.movePlayer({ teamIdxToMoveTo: teamIdx, playerTypeToMoveTo: player.playerType });
+          }
+        };
+
+        content.push(html`
+          <span class="button stack" disabled=${ disabled} onClick=${onClick}>
+            Team ${ teamIdx + 1} • ${player.label}
+          </span>
+        `);
+      }
+    }
+
+    return content;
   }
 
   handleMessage(data, e) {
@@ -385,10 +379,10 @@ export default class CodenamesRoomScreen extends Component {
     if (this.canStartGame) {
       const waitingStr = `Waiting for ${this.roomOwner.name} to start the game`;
       return html`
-  < div class="room-toolbar" >
-    ${ waitingStr}
-        </div >
-  `;
+        <div class="room-toolbar">
+          ${ waitingStr}
+        </div>
+        `;
     }
 
     return null;

@@ -21,8 +21,7 @@ export default {
 
   },
   PlayerType: {
-    INVALID: 0,
-    SPYMASTER: 1,
-    GUESSER: 2,
+    SPYMASTER: 0,
+    GUESSER: 1,
   }
 };

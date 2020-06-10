@@ -66,7 +66,7 @@ type CreatedGameEvent struct {
 	RoomCode string       `json:"roomCode"`
 	GameType string       `json:"gameType"`
 	Teams    [][]Player   `json:"teams"`
-	Settings GameSettings `json:"settings"`
+	//Settings GameSettings `json:"settings"`
 }
 
 // UpdatedRoomEvent is an event that is sent to all players

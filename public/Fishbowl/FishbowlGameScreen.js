@@ -304,7 +304,7 @@ export default class FishbowlGameScreen extends Component {
         const seconds = (timeLeft % 60).toString().padStart(2, '0');
 
         return html`
-          <div class="time-left">${minutes}:${seconds}</div>
+          <div class="fishbowl-time-left">${minutes}:${seconds}</div>
         `;
     }
 

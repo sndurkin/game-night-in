@@ -12,9 +12,8 @@ type Player struct {
 
 // Team holds the information about a specific team.
 type Team struct {
-	Spymaster   *Player `json:"spymaster"`
-	Guesser     *Player `json:"guesser"`
-	CardIndices []int  `json:"cardIndices"`
+	Players     []*Player `json:"players"`
+	CardIndices []int     `json:"cardIndices"`
 }
 
 // GameSettings holds all the relevant information about a game's
@@ -53,9 +52,10 @@ type EndTurnRequest struct {
 // CreatedGameEvent is an event that is sent to a player
 // when they create a new game room.
 type CreatedGameEvent struct {
-	RoomCode string `json:"roomCode"`
-	GameType string `json:"gameType"`
-	Team     int    `json:"team"`
+	RoomCode string       `json:"roomCode"`
+	GameType string       `json:"gameType"`
+	Teams    []Team       `json:"teams"`
+	//Settings GameSettings `json:"settings"`
 }
 
 // UpdatedRoomEvent is an event that is sent to all players
@@ -70,11 +70,14 @@ type UpdatedRoomEvent struct {
 // UpdatedGameEvent is an event that is sent to all players
 // playing a game whenever a change has been made to its state.
 type UpdatedGameEvent struct {
+	GameType string       `json:"gameType"`
+	Teams    []Team       `json:"teams,omitempty"`
+	Settings GameSettings `json:"settings"`
+
 	State                string `json:"state"`
-	CardIndicesGuessed   []int  `json:"cardIndicesGuessed,omitempty"`
-	WinningTeam          *int   `json:"winningTeam,omitempty"`
 	CurrentlyPlayingTeam int    `json:"currentlyPlayingTeam"`
-	Teams                []Team `json:"teams,omitempty"`
+	CardIndicesGuessed   []int  `json:"cardIndicesGuessed"`
+	WinningTeam          *int   `json:"winningTeam,omitempty"`
 }
 
 const (
@@ -88,8 +91,7 @@ const (
 
 const (
 	// Player types
-	PlayerInvalid = iota
-	PlayerSpymaster
+	PlayerSpymaster = iota
 	PlayerGuesser
 )
 

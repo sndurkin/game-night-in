@@ -165,7 +165,7 @@ export default class FishbowlRoomScreen extends Component {
             <div style="margin-left: 1em">seconds</div>
           </div>
           <h3>Rounds</h3>
-          <table class="primary rounds-table">
+          <table class="primary fishbowl-rounds-table">
             <tbody>
               ${rounds.map(this.renderRoundTableRow)}
             </tbody>
@@ -237,15 +237,15 @@ export default class FishbowlRoomScreen extends Component {
               Submit words
             </button>
           </div>
-          <div class="word-list">
-            <h4 class="word-list-title">
+          <div class="fishbowl-word-list">
+            <h4 class="fishbowl-word-list-title">
               Words (${words.length} out of ${numWordsRequired}):
             </h4>
             ${words.map((word, idx) => html`
-              <div class="word-row">
-                <div class="word">${word}</div>
+              <div class="fishbowl-word-row">
+                <div class="fishbowl-word">${word}</div>
                 <div
-                  class="word-delete"
+                  class="fishbowl-word-delete"
                   onClick=${() => this.deleteWord(idx)}
                 >
                   ✖
@@ -269,29 +269,29 @@ export default class FishbowlRoomScreen extends Component {
     return html`
       <div class="fishbowl-room-body">
         ${this.renderSettingsSummary()}
-        <div class="teams">
+        <div class="fishbowl-teams">
           ${teams.map((team, idx) => html`
-            <div class="team">
-              <div class="team-header" style=${Utils.teamStyle(idx)}>
-                <div class="team-title">Team ${idx + 1}</div>
+            <div class="fishbowl-team">
+              <div class="fishbowl-team-header" style=${Utils.teamStyle(idx)}>
+                <div class="fishbowl-team-title">Team ${idx + 1}</div>
                 ${isRoomOwner && idx >= 2 ? html`
                   <button
-                    class="team-remove pseudo"
+                    class="fishbowl-team-remove pseudo"
                     onClick=${() => this.removeTeam(idx)}
                   >
                     ✖
                   </button>
                 ` : null}
               </div>
-              <div class="team-table">
+              <div class="fishbowl-team-table">
                 ${(team || []).length === 0 ? html`
-                  <div class="empty-list">No players yet!</div>
+                  <div class="fishbowl-empty-list">No players yet!</div>
                 ` : (team || []).map(player => html`
-                  <div class="team-row">
-                    <div class="player-ready">
+                  <div class="fishbowl-team-row">
+                    <div class="fishbowl-player-ready">
                       ${player.wordsSubmitted ? '✔' : ''}
                     </div>
-                    <div class=${'player-name' + (player.name === name ? ' bold' : '')}>
+                    <div class=${'fishbowl-player-name' + (player.name === name ? ' bold' : '')}>
                       ${player.name}
                     </div>
                     ${isRoomOwner ? html`
@@ -302,7 +302,7 @@ export default class FishbowlRoomScreen extends Component {
                         >
                         Kick
                         </a>
-                        <span class="inline-actions-separator"> • </span>
+                        <span class="fishbowl-inline-actions-separator"> • </span>
                       ` : null}
                       <a
                         role="link"
