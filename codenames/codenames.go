@@ -544,7 +544,6 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 			})
 		} else {
 			g.sendOutgoingMessages(&models.OutgoingMessageRequest{
-				PrimaryMsg:   &msg,
 				SecondaryMsg: &msg,
 				Room:         room,
 			})
@@ -583,9 +582,8 @@ func (g *Game) sendUpdatedGameMessages(justJoinedClient interface{}) {
 	}
 
 	g.sendOutgoingMessages(&models.OutgoingMessageRequest{
-		PrimaryClient: justJoinedClient,
-		PrimaryMsg:    &msgToPlayers,
-		Room:          room,
+		SecondaryMsg: &msgToPlayers,
+		Room:         room,
 	})
 }
 

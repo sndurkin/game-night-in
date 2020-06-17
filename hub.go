@@ -168,7 +168,12 @@ func (h *Hub) handleIncomingMessage(clientMessage *ClientMessage) {
 	}
 
 	h.mutex.Lock()
-	player := h.playerClients[clientMessage.client]
+	player, ok := h.playerClients[clientMessage.client]
+	if !ok {
+		log.Println("Player client does not exist")
+		h.mutex.Unlock()
+		return
+	}
 
 	actionType, ok := api.ActionLookup[incomingMessage.Action]
 	if !ok {
@@ -469,11 +474,14 @@ func (h *Hub) sendErrorMessage(req *models.ErrorMessageRequest) {
 func (h *Hub) sendOutgoingMessages(
 	req *models.OutgoingMessageRequest,
 ) {
+	var primaryOutput []byte
 	var err error
-	primaryOutput, err := json.Marshal(*req.PrimaryMsg)
-	if err != nil {
-		log.Println(err)
-		return
+	if req.PrimaryMsg != nil {
+		primaryOutput, err = json.Marshal(*req.PrimaryMsg)
+		if err != nil {
+			log.Println(err)
+			return
+		}
 	}
 
 	var secondaryOutput []byte
@@ -486,7 +494,7 @@ func (h *Hub) sendOutgoingMessages(
 	}
 
 	for client := range h.playerClients {
-		if client == req.PrimaryClient {
+		if primaryOutput != nil && client == req.PrimaryClient {
 			select {
 			case client.send <- primaryOutput:
 			default:

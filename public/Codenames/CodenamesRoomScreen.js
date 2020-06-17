@@ -275,6 +275,11 @@ export default class CodenamesRoomScreen extends Component {
 
   handleMessage(data, e) {
     if (data.error) {
+      if (data.errorIsFatal) {
+        window.location.reload();
+        return;
+      }
+
       this.setState({ error: data.error });
     }
 
@@ -392,22 +397,14 @@ export default class CodenamesRoomScreen extends Component {
   // and everyone needs to have their words submitted.
   get canStartGame() {
     const { teams } = this.props;
-    return teams.every(players => {
-      return players.length >= CodenamesConstants.Game.MIN_PLAYERS_PER_TEAM
-        && players.every(p => p.wordsSubmitted);
-    });
+    return teams.every(team =>
+      team.players.every(player => player && player.name)
+    );
   }
 
   get roomOwner() {
     const { teams } = this.props;
-    for (let players of teams) {
-      const player = players.find(p => p.isRoomOwner);
-      if (player) {
-        return player;
-      }
-    }
-
-    return null;
+    return teams.find(team => team.players.find(p => p.isRoomOwner));
   }
 
   get player() {
