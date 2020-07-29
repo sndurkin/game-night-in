@@ -138,6 +138,7 @@ export default class FishbowlRoomScreen extends Component {
           <div style="display: flex; align-items: center">
             <input
               type="number"
+              min="0"
               style="width: 4em"
               value=${numWordsRequired}
               onChange=${this.onNumWordsRequiredChange}
@@ -148,6 +149,7 @@ export default class FishbowlRoomScreen extends Component {
           <div style="display: flex; align-items: center">
             <input
               type="number"
+              min="0"
               style="width: 4em"
               value=${maxSkipsPerTurn}
               onChange=${this.onMaxSkipsPerTurnChange}
@@ -158,6 +160,7 @@ export default class FishbowlRoomScreen extends Component {
           <div style="display: flex; align-items: center">
             <input
               type="number"
+              min="5"
               style="width: 4em"
               value=${timerLength}
               onChange=${this.onTimerChange}

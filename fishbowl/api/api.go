@@ -40,7 +40,7 @@ type AddTeamRequest struct{}
 
 // RemoveTeamRequest is used by the owner of a room to remove a
 // team from the game.
-type RemoveTeamRequest struct{
+type RemoveTeamRequest struct {
 	Team int `json:"team"`
 }
 
@@ -66,7 +66,7 @@ type CreatedGameEvent struct {
 	RoomCode string       `json:"roomCode"`
 	GameType string       `json:"gameType"`
 	Teams    [][]Player   `json:"teams"`
-	//Settings GameSettings `json:"settings"`
+	Settings GameSettings `json:"settings"`
 }
 
 // UpdatedRoomEvent is an event that is sent to all players
@@ -85,19 +85,19 @@ type UpdatedGameEvent struct {
 	Teams    [][]Player   `json:"teams,omitempty"`
 	Settings GameSettings `json:"settings"`
 
-	State                 string     `json:"state"`
-	CurrentServerTime     int64      `json:"currentServerTime,omitempty"`
-	TimerLength           int        `json:"timerLength,omitempty"`
-	LastCardGuessed       string     `json:"lastCardGuessed"`
-	CurrentCard           string     `json:"currentCard,omitempty"`
-	TotalNumCards         int        `json:"totalNumCards"`
-	NumCardsLeftInRound   int        `json:"numCardsLeftInRound"`
-	NumCardsGuessedInTurn int        `json:"numCardsGuessedInTurn"`
-	TeamScoresByRound     [][]int    `json:"teamScoresByRound"`
-	WinningTeam           *int       `json:"winningTeam,omitempty"`
-	CurrentRound          int        `json:"currentRound"`
-	CurrentPlayers        []int      `json:"currentPlayers"`
-	CurrentlyPlayingTeam  int        `json:"currentlyPlayingTeam"`
+	State                 string  `json:"state"`
+	CurrentServerTime     int64   `json:"currentServerTime,omitempty"`
+	TimerLength           int     `json:"timerLength,omitempty"`
+	LastCardGuessed       string  `json:"lastCardGuessed"`
+	CurrentCard           string  `json:"currentCard,omitempty"`
+	TotalNumCards         int     `json:"totalNumCards"`
+	NumCardsLeftInRound   int     `json:"numCardsLeftInRound"`
+	NumCardsGuessedInTurn int     `json:"numCardsGuessedInTurn"`
+	TeamScoresByRound     [][]int `json:"teamScoresByRound"`
+	WinningTeam           *int    `json:"winningTeam,omitempty"`
+	CurrentRound          int     `json:"currentRound"`
+	CurrentPlayers        []int   `json:"currentPlayers"`
+	CurrentlyPlayingTeam  int     `json:"currentlyPlayingTeam"`
 }
 
 const (

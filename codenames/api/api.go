@@ -27,9 +27,9 @@ type GameSettings struct {
 // MovePlayerRequest is used by the owner of a room to move a player
 // from one team to another.
 type MovePlayerRequest struct {
-	PlayerName          string  `json:"playerName"`
-	ToTeam              int     `json:"toTeam"`
-	ToPlayerType        PlayerT `json:"toPlayerType"`
+	PlayerName   string  `json:"playerName"`
+	ToTeam       int     `json:"toTeam"`
+	ToPlayerType PlayerT `json:"toPlayerType"`
 }
 
 // ChangeSettingsRequest is used by the owner of a room to change
@@ -55,7 +55,7 @@ type CreatedGameEvent struct {
 	RoomCode string       `json:"roomCode"`
 	GameType string       `json:"gameType"`
 	Teams    []Team       `json:"teams"`
-	//Settings GameSettings `json:"settings"`
+	Settings GameSettings `json:"settings"`
 }
 
 // UpdatedRoomEvent is an event that is sent to all players
@@ -70,14 +70,16 @@ type UpdatedRoomEvent struct {
 // UpdatedGameEvent is an event that is sent to all players
 // playing a game whenever a change has been made to its state.
 type UpdatedGameEvent struct {
-	GameType string       `json:"gameType"`
+	GameType string       `json:"gameType,omitempty"`
 	Teams    []Team       `json:"teams,omitempty"`
-	Settings GameSettings `json:"settings"`
+	Settings GameSettings `json:"settings,omitempty"`
 
-	State                string `json:"state"`
-	CurrentlyPlayingTeam int    `json:"currentlyPlayingTeam"`
-	CardIndicesGuessed   []int  `json:"cardIndicesGuessed"`
-	WinningTeam          *int   `json:"winningTeam,omitempty"`
+	State                string   `json:"state"`
+	CurrentlyPlayingTeam int      `json:"currentlyPlayingTeam"`
+	Cards                []string `json:"cards,omitempty"`
+	SpymasterCardIndices []int    `json:"spymasterCardIndices,omitempty"`
+	CardIndicesGuessed   []int    `json:"cardIndicesGuessed"`
+	WinningTeam          *int     `json:"winningTeam,omitempty"`
 }
 
 const (

@@ -80,24 +80,24 @@ export default class FishbowlGameScreen extends Component {
     return html`
       <${ScreenWrapper} ...${this.props} header=${this.header}>
         <div class="screen">
-          <div class="game-info-bar">
-            <div class="cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
+          <div class="fishbowl-game-info-bar">
+            <div class="fishbowl-cards-guessed">+ ${game.numCardsGuessedInTurn}</div>
           </div>
-          <div class="game-area">
+          <div class="fishbowl-game-area">
             ${this.gameAreaContents}
-            <div class="game-info-bar">
-              <div class="cards-left-ct">
-                <div class="cards-left-num">${game.numCardsLeftInRound}</div>
-                <div class="cards-left-text">cards left</div>
+            <div class="fishbowl-game-info-bar">
+              <div class="fishbowl-cards-left-ct">
+                <div class="fishbowl-cards-left-num">${game.numCardsLeftInRound}</div>
+                <div class="fishbowl-cards-left-text">cards left</div>
               </div>
               ${this.timeLeftComponent}
             </div>
-            <div class="current-player">
+            <div class="fishbowl-current-player">
               ${this.turnStr}
             </div>
           </div>
           ${this.isCurrentPlayer && html`
-            <div class="button-bar game-actions">
+            <div class="button-bar fishbowl-game-actions">
               ${this.buttonBar}
             </div>
           `}
@@ -189,7 +189,7 @@ export default class FishbowlGameScreen extends Component {
       }
 
       result.push(html`
-        <div class="team-score" style="border-bottom-color: ${teamColor}">
+        <div class="fishbowl-team-score" style="border-bottom-color: ${teamColor}">
           ${totalScore}
         </div>
       `);
@@ -230,14 +230,14 @@ export default class FishbowlGameScreen extends Component {
       && game.numCardsLeftInRound === game.totalNumCards) {
       const currentRoundType = settings.rounds[game.currentRound];
       return html`
-        <div class="round-start">
-          <div class="round-start-title">
+        <div class="fishbowl-round-start">
+          <div class="fishbowl-round-start-title">
             Round ${game.currentRound + 1}
           </div>
-          <div class="round-start-subtitle">
+          <div class="fishbowl-round-start-subtitle">
             ${FishbowlConstants.RoundTypes[currentRoundType].title}
           </div>
-          <div class="round-start-desc">
+          <div class="fishbowl-round-start-desc">
             ${FishbowlConstants.RoundTypes[currentRoundType].long}
           </div>
         </div>
@@ -247,12 +247,12 @@ export default class FishbowlGameScreen extends Component {
     if (game.state === FishbowlConstants.States.TURN_ACTIVE
       && this.isCurrentPlayer) {
       return html`
-        <div class="game-card">${game.currentCard}</div>
+        <div class="fishbowl-game-card">${game.currentCard}</div>
       `;
     }
 
     return html`
-      <div class="game-card">
+      <div class="fishbowl-game-card">
         <span style="color: #777">${game.lastCardGuessed}</span>
       </div>
     `;

@@ -69,24 +69,38 @@ class App extends Component {
   }
 
   getActiveScreen() {
+    let screen;
     switch (this.state.screen) {
       case Constants.Screens.HOME:
-        return this.homeScreen;
+        screen = this.homeScreen;
+        break;
       case Constants.Screens.CREATE_GAME:
-        return this.createGameScreen;
+        screen = this.createGameScreen;
+        break;
       case Constants.Screens.JOIN_GAME:
-        return this.joinGameScreen;
+        screen = this.joinGameScreen;
+        break;
       case FishbowlConstants.Screens.ROOM:
-        return this.fishbowlRoomScreen;
+        screen = this.fishbowlRoomScreen;
+        break;
       case FishbowlConstants.Screens.GAME:
-        return this.fishbowlGameScreen;
+        screen = this.fishbowlGameScreen;
+        break;
       case FishbowlConstants.Screens.GAME_OVER:
-        return this.fishbowlGameOverScreen;
+        screen = this.fishbowlGameOverScreen;
+        break;
       case CodenamesConstants.Screens.ROOM:
-        return this.codenamesRoomScreen;
+        screen = this.codenamesRoomScreen;
+        break;
+      default:
+        throw new Error('Screen not supported: ' + this.state.screen);
     }
 
-    throw new Error('Screen not supported: ' + this.state.screen);
+    if (!screen) {
+      throw new Error('Screen not set: ' + this.state.screen);
+    }
+
+    return screen;
   }
 
   render() {
@@ -162,7 +176,7 @@ class App extends Component {
   }
 }
 
-window.onload = function() {
+window.onload = function () {
   if (!window['WebSocket']) {
     document.open();
     document.write('<b>Your browser does not support WebSockets.</b>');

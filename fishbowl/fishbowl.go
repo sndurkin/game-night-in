@@ -96,9 +96,9 @@ func NewGame(
 				fishbowl_api.RoundSingleWord,
 				fishbowl_api.RoundCharades,
 			},
-			timerLength: 45,
+			timerLength:      45,
 			numWordsRequired: 5,
-			maxSkipsPerTurn: 1,
+			maxSkipsPerTurn:  1,
 		},
 		room:  gameRoom,
 		state: "waiting-room",
@@ -217,7 +217,7 @@ func (g *Game) removeTeam(
 		return
 	}
 
-	g.teams[req.Team - 1] = append(g.teams[req.Team - 1],
+	g.teams[req.Team-1] = append(g.teams[req.Team-1],
 		g.teams[req.Team]...)
 
 	g.teams = append(g.teams[:req.Team], g.teams[req.Team+1:]...)
@@ -385,7 +385,7 @@ func (g *Game) submitWords(
 	if len(req.Words) < g.settings.numWordsRequired {
 		g.sendErrorMessage(&models.ErrorMessageRequest{
 			Player: player,
-			Error:  fmt.Sprintf("At least %d words are required.",
+			Error: fmt.Sprintf("At least %d words are required.",
 				g.settings.numWordsRequired),
 		})
 		return
@@ -429,8 +429,8 @@ func (g *Game) changeCard(
 
 		if len(g.cardsInRound) == 0 {
 			if g.timer != nil {
-				startTime := time.Unix(g.currentServerTime / 1000,
-					(g.currentServerTime % 1000) * 1000000)
+				startTime := time.Unix(g.currentServerTime/1000,
+					(g.currentServerTime%1000)*1000000)
 				g.timerLength = g.timerLength - int(time.Since(startTime).Seconds())
 				g.turnContinued = true
 				g.timer.Stop()
@@ -490,7 +490,7 @@ func (g *Game) AddPlayer(player *models.Player) {
 		GameType: g.room.GameType,
 		RoomCode: g.room.RoomCode,
 		Teams:    convertTeamsToAPITeams(g.teams, g.settings),
-		//Settings: convertSettingsToAPISettings(g.settings),
+		Settings: convertSettingsToAPISettings(g.settings),
 	}
 
 	g.sendOutgoingMessages(&models.OutgoingMessageRequest{

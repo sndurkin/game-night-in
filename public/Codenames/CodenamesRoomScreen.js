@@ -404,7 +404,14 @@ export default class CodenamesRoomScreen extends Component {
 
   get roomOwner() {
     const { teams } = this.props;
-    return teams.find(team => team.players.find(p => p.isRoomOwner));
+    for (let team of teams) {
+      const player = team.players.find(p => p.isRoomOwner);
+      if (player) {
+        return player;
+      }
+    }
+
+    return null;
   }
 
   get player() {
