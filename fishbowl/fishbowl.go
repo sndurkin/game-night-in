@@ -356,6 +356,7 @@ func (g *Game) startTurn(
 		g.turnJustStarted = false
 		g.state = "turn-start"
 		g.moveToNextPlayerAndTeam()
+		g.reshuffleCards()
 
 		log.Printf("Sending updated game message after timer expired\n")
 		g.sendUpdatedGameMessages(nil)
@@ -648,6 +649,11 @@ func (g *Game) reshuffleCardsForRound() {
 	}
 	g.totalNumCards = len(g.cardsInRound)
 
+	g.reshuffleCards()
+}
+
+// This function must be called with the mutex held.
+func (g *Game) reshuffleCards() {
 	arr := g.cardsInRound
 	rand.Shuffle(len(g.cardsInRound), func(i, j int) {
 		arr[i], arr[j] = arr[j], arr[i]
