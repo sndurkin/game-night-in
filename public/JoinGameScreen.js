@@ -132,7 +132,11 @@ export default class JoinGameScreen extends Component {
 
         switch (data.body.gameType) {
           case 'fishbowl':
-            this.props.transitionToScreen(FishbowlConstants.Screens.GAME);
+            if (data.body.state === FishbowlConstants.States.GAME_OVER) {
+              this.props.transitionToScreen(FishbowlConstants.Screens.GAME_OVER);
+            } else {
+              this.props.transitionToScreen(FishbowlConstants.Screens.GAME);
+            }
             break;
           case 'codenames':
             this.props.transitionToScreen(CodenamesConstants.Screens.GAME);
