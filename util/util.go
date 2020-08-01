@@ -27,5 +27,9 @@ func GetRandomNumberInRange(min, max int) int {
 		return min
 	}
 
-	return min + rand.Intn(max-min)
+	result := min + rand.Intn(max-min+1)
+	if result > max {
+		return max
+	}
+	return result
 }
