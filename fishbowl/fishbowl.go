@@ -428,7 +428,40 @@ func (g *Game) changeCard(
 		g.lastCardGuessed = g.cardsInRound[0]
 		g.cardsInRound = g.cardsInRound[1:]
 
-		if len(g.cardsInRound) == 0 {
+		totalScores := make([]int, len(g.teams))
+		for _, scoresByTeam := range g.teamScoresByRound {
+			for team, score := range scoresByTeam {
+				totalScores[team] += score
+			}
+		}
+
+		var winningTeam, winningTeamScore, secondPlaceTeamScore int
+		var totalAchievedScore int
+		for team, totalScore := range totalScores {
+			totalAchievedScore += totalScore
+			if totalScore > winningTeamScore {
+				if winningTeamScore > 0 {
+					secondPlaceTeamScore = winningTeamScore
+				}
+				winningTeamScore = totalScore
+				winningTeam = team
+			} else if totalScore > secondPlaceTeamScore {
+				secondPlaceTeamScore = totalScore
+			}
+		}
+		remainingScore := (g.totalNumCards * len(g.settings.rounds)) -
+			totalAchievedScore
+
+		log.Printf("g.totalNumCards: %d\n", g.totalNumCards)
+		log.Printf("totalAchievedScore: %d\n", totalAchievedScore)
+		log.Printf("remainingScore: %d\n", remainingScore)
+		log.Printf("secondPlaceTeamScore: %d\n", secondPlaceTeamScore)
+		log.Printf("winningTeamScore: %d\n", winningTeamScore)
+
+		if remainingScore+secondPlaceTeamScore < winningTeamScore {
+			g.state = "game-over" // TODO: update to use constant from api.go
+			g.winningTeam = &winningTeam
+		} else if len(g.cardsInRound) == 0 {
 			if g.timer != nil {
 				startTime := time.Unix(g.currentServerTime/1000,
 					(g.currentServerTime%1000)*1000000)
@@ -448,23 +481,7 @@ func (g *Game) changeCard(
 				}
 			} else {
 				g.state = "game-over" // TODO: update to use constant from api.go
-
-				totalScores := make([]int, len(g.teams))
-				for _, scoresByTeam := range g.teamScoresByRound {
-					for team, score := range scoresByTeam {
-						totalScores[team] += score
-					}
-				}
-
-				var teamWithMax, max int
-				for team, totalScore := range totalScores {
-					if totalScore > max {
-						max = totalScore
-						teamWithMax = team
-					}
-				}
-
-				g.winningTeam = &teamWithMax
+				g.winningTeam = &winningTeam
 			}
 		}
 	} else {
