@@ -19,9 +19,11 @@ export default class FishbowlGameScreen extends Component {
       changingCard: false,
 
       numSkipsUsed: 0,
+      correctButtonDisabled: false,
     };
 
     this.startTurn = this.startTurn.bind(this);
+    this.markCardCorrect = this.markCardCorrect.bind(this);
     this.changeCard = this.changeCard.bind(this);
   }
 
@@ -172,6 +174,16 @@ export default class FishbowlGameScreen extends Component {
     }));
   }
 
+  markCardCorrect() {
+    this.setState({ correctButtonDisabled: true });
+
+    // Ensure the Correct button isn't accidentally tapped twice.
+    setTimeout(() => {
+      this.setState({ correctButtonDisabled: false });
+    }, 1000);
+    this.changeCard(FishbowlConstants.CardChange.CORRECT);
+  }
+
   get header() {
     const { teams, game, settings } = this.props;
 
@@ -260,7 +272,7 @@ export default class FishbowlGameScreen extends Component {
 
   get buttonBar() {
     const { game, settings } = this.props;
-    const { numSkipsUsed } = this.state;
+    const { numSkipsUsed, correctButtonDisabled } = this.state;
     const skipAvailable = numSkipsUsed < settings.maxSkipsPerTurn;
 
     switch (game.state) {
@@ -279,7 +291,8 @@ export default class FishbowlGameScreen extends Component {
           <div></div>
           <button
             class="success"
-            onClick=${() => this.changeCard(FishbowlConstants.CardChange.CORRECT)}
+            disabled=${correctButtonDisabled}
+            onClick=${this.markCardCorrect}
           >
             Correct!
           </button>
