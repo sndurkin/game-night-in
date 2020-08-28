@@ -104,7 +104,7 @@ func (h *Hub) registerClient(client *Client) {
 
 				h.sendErrorMessage(&models.ErrorMessageRequest{
 					Player: player,
-					Fatal: true,
+					Fatal:  true,
 					Error:  "You are no longer part of this game.",
 				})
 				delete(h.playerClients, client)
@@ -113,7 +113,7 @@ func (h *Hub) registerClient(client *Client) {
 			log.Printf("Room not found, sending fatal error\n")
 			h.sendErrorMessage(&models.ErrorMessageRequest{
 				Player: player,
-				Fatal: true,
+				Fatal:  true,
 				Error:  "This game no longer exists.",
 			})
 			delete(h.playerClients, client)
@@ -298,7 +298,7 @@ func (h *Hub) generateUniqueRoomCode() string {
 	defer h.mutex.RUnlock()
 
 	for {
-		newRoomCode := strconv.Itoa(util.GetRandomNumberInRange(1000, 9999))
+		newRoomCode := strconv.Itoa(util.GetRandomNumberInRange(1000, 10000))
 		foundDuplicate := false
 		for roomCode := range h.rooms {
 			if newRoomCode == roomCode {

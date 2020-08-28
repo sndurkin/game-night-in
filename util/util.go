@@ -22,14 +22,12 @@ func IntInSlice(arr []int, val int) bool {
 	return false
 }
 
+// GetRandomNumberInRange returns a random number between
+// min (inclusive) and max (exclusive).
 func GetRandomNumberInRange(min, max int) int {
 	if min == max {
 		return min
 	}
 
-	result := min + rand.Intn(max-min+1)
-	if result > max {
-		return max
-	}
-	return result
+	return min + rand.Intn(max-min)
 }

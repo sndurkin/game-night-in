@@ -104,7 +104,7 @@ func NewGame(
 	cardIndices := make(map[int]bool, 25)
 	for i := 0; i < 25; i++ {
 		for {
-			newCardIdx := util.GetRandomNumberInRange(0, len(allCards)-1)
+			newCardIdx := util.GetRandomNumberInRange(0, len(allCards))
 			if _, exists := cardIndices[newCardIdx]; exists {
 				continue
 			}
@@ -117,7 +117,7 @@ func NewGame(
 
 	// Generate the assassin card.
 	cardIndices = make(map[int]bool, 12)
-	g.assassinCardIdx = util.GetRandomNumberInRange(0, 24)
+	g.assassinCardIdx = util.GetRandomNumberInRange(0, 25)
 	cardIndices[g.assassinCardIdx] = true
 
 	// Generate the first team's cards.
@@ -126,7 +126,7 @@ func NewGame(
 	}
 	for i := 0; i < 6; i++ {
 		for {
-			newCardIdx := util.GetRandomNumberInRange(0, 24)
+			newCardIdx := util.GetRandomNumberInRange(0, 25)
 			if _, exists := cardIndices[newCardIdx]; exists {
 				continue
 			}
@@ -143,7 +143,7 @@ func NewGame(
 	}
 	for i := 0; i < 5; i++ {
 		for {
-			newCardIdx := util.GetRandomNumberInRange(0, 24)
+			newCardIdx := util.GetRandomNumberInRange(0, 25)
 			if _, exists := cardIndices[newCardIdx]; exists {
 				continue
 			}

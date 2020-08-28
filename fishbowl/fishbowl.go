@@ -96,7 +96,7 @@ func NewGame(
 				fishbowl_api.RoundSingleWord,
 				fishbowl_api.RoundCharades,
 			},
-			timerLength:      45,
+			timerLength:      30,
 			numWordsRequired: 5,
 			maxSkipsPerTurn:  1,
 		},
@@ -553,9 +553,9 @@ func (g *Game) Start(player *models.Player) {
 	g.currentRound = 0
 	g.currentPlayers = make([]int, len(g.teams))
 	for i, players := range g.teams {
-		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players)-1)
+		g.currentPlayers[i] = util.GetRandomNumberInRange(0, len(players))
 	}
-	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams)-1)
+	g.currentlyPlayingTeam = util.GetRandomNumberInRange(0, len(g.teams))
 
 	g.sendUpdatedGameMessages(nil)
 }
