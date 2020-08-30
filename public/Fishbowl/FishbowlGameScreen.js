@@ -160,9 +160,18 @@ export default class FishbowlGameScreen extends Component {
       currentCard: game.currentCard,
       changingCard: true,
     };
+
     if (changeType === FishbowlConstants.CardChange.SKIP) {
+      if (game.numCardsLeftInRound === 1) {
+        this.setState({
+          numSkipsUsed: numSkipsUsed + 1,
+        });
+        return;
+      }
+
       newState.numSkipsUsed = numSkipsUsed + 1;
     }
+
     this.setState(newState);
 
     const { conn } = this.props;

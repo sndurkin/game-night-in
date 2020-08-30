@@ -452,12 +452,6 @@ func (g *Game) changeCard(
 		remainingScore := (g.totalNumCards * len(g.settings.rounds)) -
 			totalAchievedScore
 
-		log.Printf("g.totalNumCards: %d\n", g.totalNumCards)
-		log.Printf("totalAchievedScore: %d\n", totalAchievedScore)
-		log.Printf("remainingScore: %d\n", remainingScore)
-		log.Printf("secondPlaceTeamScore: %d\n", secondPlaceTeamScore)
-		log.Printf("winningTeamScore: %d\n", winningTeamScore)
-
 		if remainingScore+secondPlaceTeamScore < winningTeamScore {
 			g.state = "game-over" // TODO: update to use constant from api.go
 			g.winningTeam = &winningTeam
@@ -484,7 +478,7 @@ func (g *Game) changeCard(
 				g.winningTeam = &winningTeam
 			}
 		}
-	} else {
+	} else if len(g.cardsInRound) > 1 {
 		// Skip this card, push it to the end
 		g.cardsInRound = append(g.cardsInRound[1:], g.cardsInRound[0])
 	}
